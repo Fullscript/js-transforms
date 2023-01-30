@@ -2,7 +2,7 @@ import { visit, types } from "recast";
 
 const b = types.builders;
 
-const transformer = (ast, callback) => {
+const transform = (ast, callback) => {
   visit(ast, {
     visitCallExpression(path) {
       if (path.node.callee.name === "createMock" && path.node.arguments?.[0]?.type === "StringLiteral") {
@@ -27,4 +27,4 @@ const transformer = (ast, callback) => {
   callback(ast);
 };
 
-export { transformer };
+export { transform };

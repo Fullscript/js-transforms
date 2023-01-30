@@ -3,8 +3,9 @@ import { readFile, writeFile } from "fs";
 import glob from "glob";
 import { parse, print } from "recast";
 
-// Comment out which one you want to use/run
-import { transformer } from "./createMockToObjectParams.js";
+const VALID_TRANSFORM_NAMES = [
+  "createMockToObjectParams",
+];
 
 const parseCode = code => {
   return parse(code, {
@@ -57,17 +58,25 @@ const parseCode = code => {
   });
 };
 
-// eslint-disable-next-line no-undef
-const filePaths = glob.sync(process.argv[2]);
+const transformToRun = process.argv[2];
+const filePaths = glob.sync(process.argv[3]);
 
-filePaths.forEach(filePath => {
-  readFile(filePath, "utf-8", (err, code) => {
+const validTransform = VALID_TRANSFORM_NAMES.find((transformName) => transformName === transformToRun);
+
+if (!validTransform) {
+  throw new Error(`${transformToRun} is not a valid transform name.`);
+}
+
+filePaths.forEach((filePath) => {
+  readFile(filePath, "utf-8", async (err, code) => {
     if (err) {
       console.error(err);
       return;
     }
 
-    transformer(parseCode(code), node => {
+    const { transform } = await import(`./${transformToRun}.js`);
+
+    transform(parseCode(code), node => {
       const transformedCode = print(node).code;
       
       if (process.argv[3] === "--dry-run") {
