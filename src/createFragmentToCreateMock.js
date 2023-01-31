@@ -4,15 +4,20 @@ const b = types.builders;
 let needToImportCreateMock = true;
 let rtlImportNode = null;
 let parentNode;
+let createFragmentFunction;
+let graphqlTypeName;
 
 const buildCreateMockParams = (node) => {
   const id = node.arguments[0];
-  const overrides = node.arguments?.[1] ?? {};
+  const overrides = node.arguments?.[1] ?? b.objectExpression([]);
 
   node.callee.name = "createMock";
 
   const createMockParam = b.objectExpression([
-    b.objectProperty(b.identifier("typeName"), b.stringLiteral("Patient")),
+    b.objectProperty(
+      b.identifier("typeName"),
+      b.stringLiteral(graphqlTypeName)
+    ),
   ]);
 
   overrides.properties.unshift(b.objectProperty(b.identifier("id"), id));
@@ -32,14 +37,29 @@ const addCreateMockImport = () => {
     // need to add via parentNode
     parentNode.body.unshift(
       b.importDeclaration(
-        b.importSpecifier(b.identifier("createMock")),
-        b.stringLiteral("@testing/createMock"),
+        [b.importSpecifier(b.identifier("createMock"))],
+        b.stringLiteral("@testing/createMock")
       )
     );
   }
 };
 
-const transform = (ast, callback) => {
+const containsSpecifier = (node, specifierName) => {
+  return !!node.specifiers.find((specifier) => {
+    return specifier?.imported?.name === specifierName;
+  });
+};
+
+const removeCreateFragmentImport = (node) => {
+  return node.specifiers.filter((specifier) => {
+    return specifier.imported.name !== createFragmentFunction;
+  });
+};
+
+const transform = (ast, callback, options) => {
+  createFragmentFunction = options[0];
+  graphqlTypeName = options[1];
+
   visit(ast, {
     visitProgram(path) {
       needToImportCreateMock = true;
@@ -56,9 +76,10 @@ const transform = (ast, callback) => {
 
       if (path.node.source.value === "@testing/rtl") {
         // verify if createMock is already imported
-        const hasImportedCreateMock = path.node.specifiers.find((specifier) => {
-          return specifier?.imported?.name === "createMock";
-        });
+        const hasImportedCreateMock = containsSpecifier(
+          path.node,
+          "createMock"
+        );
 
         if (hasImportedCreateMock) {
           needToImportCreateMock = false;
@@ -67,10 +88,22 @@ const transform = (ast, callback) => {
         }
       }
 
+      // Removes createFragmentImport specifier
+      // First condition is when just a single modules is imported
+      if (
+        containsSpecifier(path.node, createFragmentFunction) &&
+        path.node.specifiers.length === 1
+      ) {
+        path.prune();
+      } else if (containsSpecifier(path.node, createFragmentFunction)) {
+        // More than one module is imported, we should just remove create*Fragment
+        path.node.specifiers = removeCreateFragmentImport(path.node);
+      }
+
       this.traverse(path);
     },
     visitCallExpression(path) {
-      if (path.node.callee.name === "createPatientFragment") {
+      if (path.node.callee.name === createFragmentFunction) {
         // If there's a match, then we need to also import `createMock` depending on needToImportCreateMock
         const createMockParam = buildCreateMockParams(path.node);
 

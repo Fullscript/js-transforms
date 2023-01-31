@@ -8,10 +8,10 @@ const VALID_TRANSFORM_NAMES = [
   "createFragmentToCreateMock",
 ];
 
-const parseCode = code => {
+const parseCode = (code) => {
   return parse(code, {
     parser: {
-      parse: source => {
+      parse: (source) => {
         return babelParser.parse(source, {
           // sourceFilename: options.fileName,
           allowAwaitOutsideFunction: true,
@@ -59,10 +59,12 @@ const parseCode = code => {
   });
 };
 
-const transformToRun = process.argv[2];
-const filePaths = glob.sync(process.argv[3]);
+const [_1, _2, transformToRun, pathGlob, ...transformOptions] = process.argv;
+const filePaths = glob.sync(pathGlob);
 
-const validTransform = VALID_TRANSFORM_NAMES.find((transformName) => transformName === transformToRun);
+const validTransform = VALID_TRANSFORM_NAMES.find(
+  (transformName) => transformName === transformToRun
+);
 
 if (!validTransform) {
   throw new Error(`${transformToRun} is not a valid transform name.`);
@@ -77,16 +79,16 @@ filePaths.forEach((filePath) => {
 
     const { transform } = await import(`./${transformToRun}.js`);
 
-    transform(parseCode(code), node => {
-      const transformedCode = print(node).code;
-      
-      if (process.argv[3] === "--dry-run") {
-        console.log(transformedCode);
-      } else {
-        writeFile(filePath, transformedCode, writeError => {
+    transform(
+      parseCode(code),
+      (node) => {
+        const transformedCode = print(node).code;
+
+        writeFile(filePath, transformedCode, (writeError) => {
           console.log(writeError);
         });
-      }
-    });
+      },
+      transformOptions
+    );
   });
 });
