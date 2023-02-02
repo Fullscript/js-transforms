@@ -18,7 +18,7 @@ let graphqlTypeName;
  */
 const buildCreateMockParams = (node) => {
   const id = node.arguments[0];
-  const overrides = node.arguments?.[1] ?? b.objectExpression([]);
+  let overrides = node.arguments[1] ?? b.objectExpression([]);
 
   node.callee.name = "createMock";
 
@@ -29,7 +29,14 @@ const buildCreateMockParams = (node) => {
     ),
   ]);
 
+  // In the case where a variable is being passed directly into create*Fragment
+  // Ex: createVariantFragment("1", variantOptions);
+  if (overrides.type === "Identifier") {
+    overrides = b.objectExpression([b.spreadElement(overrides)]);
+  }
+
   overrides.properties.unshift(b.objectProperty(b.identifier("id"), id));
+
   createMockParam.properties.push(
     b.objectProperty(b.identifier("overrides"), overrides)
   );
