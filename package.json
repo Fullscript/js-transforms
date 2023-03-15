@@ -8,11 +8,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "transform": "node ./src/index.js"
+    "transform": "node ./src/index.js",
+    "transform-debug": "node --inspect-brk ./src/index.js"
   },
   "dependencies": {
     "@babel/parser": "^7.20.7",
     "glob": "^8.0.3",
+    "graphql": "^16.6.0",
     "recast": "^0.22.0"
   }
 }

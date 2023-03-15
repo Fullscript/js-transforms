@@ -1,11 +1,12 @@
 import babelParser from "@babel/parser";
-import { readFile, writeFile } from "fs";
+import { readFile, writeFileSync } from "fs";
 import glob from "glob";
 import { parse, print } from "recast";
 
 const VALID_TRANSFORM_NAMES = [
   "createMockToObjectParams",
   "createFragmentToCreateMock",
+  "queryDocumentNodePascalCase",
 ];
 
 const parseCode = (code) => {
@@ -70,25 +71,40 @@ if (!validTransform) {
   throw new Error(`${transformToRun} is not a valid transform name.`);
 }
 
-filePaths.forEach((filePath) => {
-  readFile(filePath, "utf-8", async (err, code) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
+let allTransformedOperationNames = {};
 
-    const { transform } = await import(`./${transformToRun}.js`);
+await Promise.all(
+  filePaths.map((filePath) => {
+    return new Promise((resolve) => {
+      readFile(filePath, "utf-8", async (err, code) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
 
-    transform(
-      parseCode(code),
-      (node) => {
-        const transformedCode = print(node).code;
+        const { transform } = await import(`./${transformToRun}.js`);
 
-        writeFile(filePath, transformedCode, (writeError) => {
-          console.log(writeError);
-        });
-      },
-      transformOptions
-    );
-  });
-});
+        transform(
+          parseCode(code),
+          (node, transformedNames) => {
+            const transformedCode = print(node).code;
+
+            allTransformedOperationNames = {
+              ...allTransformedOperationNames,
+              ...transformedNames,
+            };
+
+            // writeFile(filePath, transformedCode, (writeError) => {
+            //   console.log(writeError);
+            // });
+          },
+          transformOptions
+        );
+
+        resolve();
+      });
+    });
+  })
+);
+
+writeFileSync("./tmp/queryDocumentNodePascalCase.json", JSON.stringify(allTransformedOperationNames));
