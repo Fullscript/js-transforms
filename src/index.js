@@ -7,6 +7,7 @@ const VALID_TRANSFORM_NAMES = [
   "createMockToObjectParams",
   "createFragmentToCreateMock",
   "queryDocumentNodePascalCase",
+  "queryDocumentNodePascalCaseFollow",
 ];
 
 const parseCode = (code) => {
@@ -94,9 +95,7 @@ await Promise.all(
               ...transformedNames,
             };
 
-            // writeFile(filePath, transformedCode, (writeError) => {
-            //   console.log(writeError);
-            // });
+            writeFileSync(filePath, transformedCode);
           },
           transformOptions
         );

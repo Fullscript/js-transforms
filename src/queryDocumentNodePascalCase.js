@@ -24,7 +24,7 @@ const transform = (ast, callback) => {
 
           if (transformedNames.hasOwnProperty(exportName)) {
             throw new Error(
-              `Duplicate exportName: ${gqlOperationName} found for operation name: ${gqlOperationName}.`
+              `Duplicate exportName: ${exportName} found for operation name: ${gqlOperationName}.`
             );
           }
 
