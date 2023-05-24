@@ -6,6 +6,7 @@ import { parse, print } from "recast";
 const VALID_TRANSFORM_NAMES = [
   "createMockToObjectParams",
   "createFragmentToCreateMock",
+  "colorsToTheme"
 ];
 
 const parseCode = (code) => {
