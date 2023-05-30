@@ -37,21 +37,67 @@ const containsSpecifier = (node, specifierName) => {
 /**
  * Replace existing expressions with modified ones, this map replaces specified colors with equivalent theme
  */
-const convertColorsToThemeExpressions = (expressions) => {
+const convertColorsExpressionsToThemeExpressions = (expressions) => {
+  // parse converts out theme.success.base for example with the equivalent AST
+  const themeToReplaceWithAST = parse(themeToReplaceWith);
+
   return expressions.map((cssExpression) => {
     if (cssExpression.type === "MemberExpression") {
+      // Convert the AST of colors.foobar into a string for comparison
       const serializedCssExpression = print(cssExpression).code;
 
-      // If expression is the color expression to replace, do stuff
+      // If cssExpression is a color expression that matches the color we want to replace, replace it with the specified theme
       if (serializedCssExpression === colorToReplace) {
         convertedColorToTheme = true;
-        return parse(themeToReplaceWith);
+        return themeToReplaceWithAST;
+      }
+    } else if (cssExpression.type === "CallExpression") {
+      // helpers.hexToRgba(colors.foobar) for example
+      const serializedCallExpression = print(cssExpression.callee).code;
+
+      // Some of these are helpers.hexToRgba or hexToRgba
+      if (serializedCallExpression.match(/^(helpers|hexToRgba)/gm)) {
+        const serializedArgument = print(cssExpression.arguments[0]).code;
+
+        if (serializedArgument === colorToReplace) {
+          convertedColorToTheme = true;
+
+          cssExpression.arguments[0] = themeToReplaceWithAST;
+          return cssExpression;
+        }
       }
     }
 
-    // Not a MemberExpression so thus can't be colors
+    // Not a MemberExpression or CallExpression so thus can't be colors
     return cssExpression;
   });
+};
+
+/**
+ * Takes in a TemplateLiteral node, loops through its expressions and replaces any colors with the specified theme
+ * Also wraps the TemplateLiteral in a function if we have converted a color to theme
+ */
+const convertColorsInTaggedExpression = (node, shouldWrapInThemeFunc = true) => {
+  node.quasi.expressions = convertColorsExpressionsToThemeExpressions(
+    node.quasi.expressions
+  );
+
+  // Import Theme type if it doesn't already exist, needed for changing colors to themes
+  if (!hasImportedThemeType && !addedThemeImportType && convertedColorToTheme) {
+    addThemeTypeImport();
+  }
+
+  // If we have converted a color to theme, we must wrap the template literal in a function like (theme: Theme ) = css`...`;
+  if (convertedColorToTheme && shouldWrapInThemeFunc) {
+    const themeIdentifier = b.identifier("theme");
+    themeIdentifier.typeAnnotation = b.typeAnnotation(
+      b.genericTypeAnnotation(b.identifier("Theme"), null)
+    );
+    node = b.arrowFunctionExpression([themeIdentifier], node);
+    convertedColorToTheme = false;
+  }
+
+  return node;
 };
 
 const transform = (ast, callback, options) => {
@@ -64,6 +110,9 @@ const transform = (ast, callback, options) => {
 
   visit(ast, {
     visitProgram(path) {
+      // Program can seemingly be visited multiple times for a single file
+      // This is contrary to other parsers so I just want to set it once per file
+      // Having access to the parentNode allows us to inject a type import for Theme once we know we've replaced a color
       if (!parentNode) {
         parentNode = path.node;
       }
@@ -78,28 +127,36 @@ const transform = (ast, callback, options) => {
 
       this.traverse(path);
     },
+    // Covers most cases where colors is used within something like export const container = css`...`;
     visitVariableDeclarator(path) {
-      // I'm assuming that all occurrences of colors happens within TaggedTemplateExpressions and not in functions or anything else
+      // For most cases like export const container = css`...`;
       if (
         path.node.init.type === "TaggedTemplateExpression" &&
-        path.node.init.tag.name === "css"
+        (path.node.init.tag.name === "css" ||
+          path.node.init.tag.name === "keyframes")
       ) {
-        path.node.init.quasi.expressions = convertColorsToThemeExpressions(
-          path.node.init.quasi.expressions
+        path.node.init = convertColorsInTaggedExpression(path.node.init);
+      } else if ( // For cases where theme is already partially used but colors still exist like const container = (theme: Theme) => css`...`;
+        path.node.init.type === "ArrowFunctionExpression" &&
+        (path.node.init.body.tag?.name === "css" ||
+          path.node.init.body.tag?.name === "keyframes")
+      ) {
+        path.node.init.body = convertColorsInTaggedExpression(
+          path.node.init.body,
+          false
         );
-        
-        // Import Theme type if it doesn't already exist, needed for changing colors to themes
-        if (!hasImportedThemeType && !addedThemeImportType && convertedColorToTheme) {
-          addThemeTypeImport();
-        }
+      }
 
-        // If we have converted a color to theme, we must wrap the template literal in a function
-        if (convertedColorToTheme) {
-          const themeIdentifier = b.identifier("theme");
-          themeIdentifier.typeAnnotation = b.typeAnnotation(b.genericTypeAnnotation(b.identifier("Theme"), null));
-          path.node.init = b.arrowFunctionExpression([themeIdentifier], path.node.init);
-          convertedColorToTheme = false;
-        }
+      this.traverse(path);
+    },
+    // For cases where colors is used within an object for like base: css`...`,
+    visitObjectProperty(path) {
+      if (
+        path.node.value.type === "TaggedTemplateExpression" &&
+        (path.node.value.tag.name === "css" ||
+          path.node.value.tag.name === "keyframes")
+      ) {
+        path.node.value = convertColorsInTaggedExpression(path.node.value);
       }
 
       this.traverse(path);
