@@ -121,7 +121,7 @@ const transform = (ast, callback, options) => {
     },
     visitImportDeclaration(path) {
       // verify if Theme is already imported via a @emotion/react importDeclaration
-      if (path.node.source.value === "@emotion/react") {
+      if (!hasImportedThemeType && path.node.source.value === "@emotion/react") {
         hasImportedThemeType = containsSpecifier(path.node, "Theme");
       }
 
