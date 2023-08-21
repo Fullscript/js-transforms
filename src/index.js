@@ -1,91 +1,41 @@
-import babelParser from "@babel/parser";
 import { readFile, writeFile } from "fs";
-import glob from "glob";
-import { parse, print } from "recast";
+import { print } from "recast";
 
-const VALID_TRANSFORM_NAMES = [
-  "createMockToObjectParams",
-];
+import { parseCode } from "./parser.js";
+import { validTransformName } from "./validTransformName.js";
+import { dryRun, filePaths, transformToRun, options } from "./cli.js";
+import { dryRunOutput } from "./dryRunOutput.js";
+import { transformer } from "./transformer.js";
 
-const parseCode = code => {
-  return parse(code, {
-    parser: {
-      parse: source => {
-        return babelParser.parse(source, {
-          // sourceFilename: options.fileName,
-          allowAwaitOutsideFunction: true,
-          allowImportExportEverywhere: true,
-          allowReturnOutsideFunction: true,
-          allowSuperOutsideMethod: true,
-          allowUndeclaredExports: true,
-          tokens: true,
-          plugins: [
-            "typescript",
-            "jsx",
-            "asyncDoExpressions",
-            "asyncGenerators",
-            "bigInt",
-            "classPrivateMethods",
-            "classPrivateProperties",
-            "classProperties",
-            "classStaticBlock",
-            "decimal",
-            // decoratorSyntax === "new" ? "decorators" : "decorators-legacy",
-            "doExpressions",
-            "dynamicImport",
-            "exportDefaultFrom",
-            "exportNamespaceFrom",
-            "functionBind",
-            "functionSent",
-            "importAssertions",
-            "importMeta",
-            "logicalAssignment",
-            "moduleBlocks",
-            "moduleStringNames",
-            "nullishCoalescingOperator",
-            "numericSeparator",
-            "objectRestSpread",
-            "optionalCatchBinding",
-            "optionalChaining",
-            "partialApplication",
-            "privateIn",
-            "throwExpressions",
-            "topLevelAwait",
-          ],
-        });
-      },
-    },
-  });
-};
-
-const transformToRun = process.argv[2];
-const filePaths = glob.sync(process.argv[3]);
-
-const validTransform = VALID_TRANSFORM_NAMES.find((transformName) => transformName === transformToRun);
-
-if (!validTransform) {
+if (!validTransformName(transformToRun)) {
   throw new Error(`${transformToRun} is not a valid transform name.`);
 }
 
+const { transform } = await import(`./transforms/${transformToRun}.js`);
+
 filePaths.forEach((filePath) => {
-  readFile(filePath, "utf-8", async (err, code) => {
+  readFile(filePath, "utf-8", (err, code) => {
     if (err) {
-      console.error(err);
-      return;
+      throw err;
     }
 
-    const { transform } = await import(`./${transformToRun}.js`);
+    transformer({
+      ast: parseCode(code),
+      transformToRun: transform,
+      onTransformed: (node) => {
+        const transformedCode = print(node).code;
 
-    transform(parseCode(code), node => {
-      const transformedCode = print(node).code;
-      
-      if (process.argv[3] === "--dry-run") {
-        console.log(transformedCode);
-      } else {
-        writeFile(filePath, transformedCode, writeError => {
-          console.log(writeError);
-        });
-      }
+        if (dryRun) {
+          dryRunOutput(transformedCode, filePath);
+        } else {
+          writeFile(filePath, transformedCode, (writeError) => {
+            if (writeError) {
+              throw writeError();
+            }
+          });
+        }
+      },
+      options,
     });
   });
 });
