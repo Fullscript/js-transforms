@@ -91,6 +91,22 @@ Example:
 yarn transform createFragmentToCreateMock '../hw-admin/app/javascript/**/*.spec.ts*' --options createPatientFragment Patient
 ```
 
+#### lTranslations
+
+For converting `t("common:foobar")` to the equivalent l translation `t(l.common.foobar)`
+
+Usage:
+
+```sh
+yarn transform lTranslations '../hw-admin/app/javascript/<namespace>/**/*.ts*' --options <importPathForl>
+```
+
+Example:
+
+```sh
+yarn transform lTranslation '../hw-admin/app/javascript/patient/**/*.ts*' --options @patient/locales
+```
+
 ### CLI
 
 The CLI usage is as follows:

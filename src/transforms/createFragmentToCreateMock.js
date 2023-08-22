@@ -8,6 +8,7 @@ let graphqlTypeName;
  * Type definitions for VSCode autocompletion!
  *
  * @typedef {Object} TransformParams
+ * @property {*} ast - The resulting AST as parsed by babel
  * @property {import("ast-types/gen/builders").builders} builder - Recast builder for transforming the AST
  * @property {*} options - Options passed into the transform from the CLI (if any)
  */
