@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "fs";
+import { readFile, readFileSync, writeFile } from "fs";
+import glob from "glob";
 import { print } from "recast";
 
 import { parseCode } from "./parser.js";
@@ -18,31 +19,28 @@ if (!validTransformName(transformToRun)) {
   process.exit(1);
 }
 
-const { transform } = await import(`./transforms/${transformToRun}.js`);
+const transformPath = glob.sync(`./src/transforms/**/${transformToRun}.js`)[0];
+const { transform } = await import(transformPath.replace("./src", "."));
 
 filePaths.forEach((filePath) => {
-  readFile(filePath, "utf-8", (err, code) => {
-    if (err) {
-      throw err;
-    }
+  const code = readFileSync(filePath, { encoding: "utf-8", flag: "r" });
 
-    transformer({
-      ast: parseCode(code),
-      transformToRun: transform,
-      onTransformed: (node) => {
-        const transformedCode = print(node).code;
+  transformer({
+    ast: parseCode(code),
+    transformToRun: transform,
+    onTransformed: (node) => {
+      const transformedCode = print(node).code;
 
-        if (dryRun) {
-          dryRunOutput(transformedCode, filePath);
-        } else {
-          writeFile(filePath, transformedCode, (writeError) => {
-            if (writeError) {
-              throw writeError();
-            }
-          });
-        }
-      },
-      options,
-    });
+      if (dryRun) {
+        dryRunOutput(transformedCode, filePath);
+      } else {
+        writeFile(filePath, transformedCode, (writeError) => {
+          if (writeError) {
+            throw writeError();
+          }
+        });
+      }
+    },
+    options,
   });
 });
