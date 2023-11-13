@@ -53,8 +53,7 @@ describe("flipperRipper", () => {
       it("removes the useFlippers specifier only", () => {
         const code = `
           import { useFlippers, someOtherUtil } from "@shared/utils";
-          const [isFlipperEnabled] = useFlippers("flipper_name");
-        `;
+          const [isFlipperEnabled] = useFlippers("flipper_name");`;
 
         transformCode({
           code,
@@ -80,6 +79,23 @@ describe("flipperRipper", () => {
           expect(result).toEqual(
             `const [isAnotherFlipperEnabled] = useFlippers("another_flipper_name")`
           );
+        },
+      });
+    });
+  });
+
+  describe("when the flipper to remove is NOT in useFlippers", () => {
+    it("does nothing", () => {
+      const code = `
+import { useFlippers } from "@shared/utils";
+const [isFlipperEnabled, isAnotherFlipperEnabled] = useFlippers("flipper_name", "another_flipper_name")
+`;
+
+      transformCode({
+        code,
+        options: ["some_flipper_that_doesn't exist"],
+        onTransformed: (result) => {
+          expect(result).toEqual(code);
         },
       });
     });
@@ -196,6 +212,200 @@ const Component = () => {
   );
 };`
             );
+          },
+        });
+      });
+    });
+  });
+
+  describe("JSXExpressionContainer", () => {
+    describe("when the expression contains a simple unary flipper expression", () => {
+      it("removes the entire JSXExpressionContainer", () => {
+        const code = `
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  return <Accordion
+    css={!isFlipperEnabled && styles.accordion}
+    coreTriggerContent={
+      <Typography type="body" isSecondaryWeight>
+        {patientTermCapitalizedPlural}
+      </Typography>
+    }
+  />;
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const Component = () => {
+  return (
+    <Accordion
+      coreTriggerContent={
+        <Typography type="body" isSecondaryWeight>
+          {patientTermCapitalizedPlural}
+        </Typography>
+      } />
+  );
+};`);
+          },
+        });
+      });
+    });
+
+    describe("when the expression contains a simple flipper expression", () => {
+      it("removes the flipper conditional", () => {
+        const code = `
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  return <Accordion
+    css={isFlipperEnabled && styles.accordion}
+    coreTriggerContent={
+      <Typography type="body" isSecondaryWeight>
+        {patientTermCapitalizedPlural}
+      </Typography>
+    }
+  />;
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const Component = () => {
+  return (
+    <Accordion
+      css={styles.accordion}
+      coreTriggerContent={
+        <Typography type="body" isSecondaryWeight>
+          {patientTermCapitalizedPlural}
+        </Typography>
+      }
+    />
+  );
+};`);
+          },
+        });
+      });
+    });
+  });
+
+  describe("JSXAttribute", () => {
+    describe("when flippers attribute contains only the flipper to remove", () => {
+      it("removes the entire FlippersProvider", () => {
+        const code = `
+import { FlippersProvider } from "@shared/context";
+
+<FlippersProvider flippers={["flipper_name"]}>
+  <div />
+</FlippersProvider>`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(`<div />`);
+          },
+        });
+      });
+    });
+
+    describe("when flippers attribute contains more than just the flipper to remove", () => {
+      it("removes just the specified flipper", () => {
+        const code = `
+import { FlippersProvider } from "@shared/context";
+
+<FlippersProvider flippers={["flipper_name", "foo_bar_flipper"]}>
+  <div />
+</FlippersProvider>`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+import { FlippersProvider } from "@shared/context";
+
+<FlippersProvider flippers={["foo_bar_flipper"]}>
+  <div />
+</FlippersProvider>`);
+          },
+        });
+      });
+    });
+
+    describe("when FlippersProvider contains more than one child", () => {
+      it("removes just the specified flipper", () => {
+        const code = `
+import { FlippersProvider } from "@shared/context";
+
+<FlippersProvider flippers={["flipper_name"]}>
+  <div />
+  <div />
+</FlippersProvider>`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(`<><div /><div /></>`);
+          },
+        });
+      });
+    });
+
+    describe("when flippers attribute is passed a variable", () => {
+      it("does nothing", () => {
+        const code = `
+import { FlippersProvider } from "@shared/context";
+
+<FlippersProvider flippers={flippers}>
+  <div />
+</FlippersProvider>`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(code);
+          },
+        });
+      });
+    });
+
+    describe("when multiple FlippersProvider exist", () => {
+      it("cleans up both of them", () => {
+        const code = `
+import { FlippersProvider } from "@shared/context";
+
+const ComponentOne = () => {
+  return <FlippersProvider flippers={["flipper_name"]}>
+    <div />
+  </FlippersProvider>;
+}
+
+const ComponentTwo = () => {
+  return <FlippersProvider flippers={["flipper_name"]}>
+    <div />
+  </FlippersProvider>
+}`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const ComponentOne = () => {
+  return <div />;
+}
+
+const ComponentTwo = () => {
+  return <div />;
+}`);
           },
         });
       });

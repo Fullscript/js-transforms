@@ -10,7 +10,8 @@
   "scripts": {
     "transform": "node ./src/index.js",
     "transform-debug": "node --inspect-brk ./src/index.js",
-    "test": "vitest"
+    "test": "vitest",
+    "test-debug": "node --inspect-brk ./node_modules/.bin/vitest ./src/index.js"
   },
   "dependencies": {
     "@babel/parser": "^7.20.7",

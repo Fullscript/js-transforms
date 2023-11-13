@@ -17,6 +17,10 @@ const yargsInstance = yargs(hideBin(process.argv))
     describe: "Options passed to the transform",
     array: true,
   })
+  .option("verbose", {
+    describe: "Output extra debugging info",
+    boolean: true,
+  })
   .option("dry-run", {
     alias: "d",
     describe: "Log output to console without writing to files",
@@ -34,5 +38,6 @@ const transformToRun = positionalArgs[0];
 const filePaths = glob.sync(positionalArgs[1]);
 const dryRun = args.dryRun;
 const options = args.options;
+const verbose = args.verbose;
 
-export { transformToRun, filePaths, dryRun, options };
+export { transformToRun, filePaths, dryRun, options, verbose };
