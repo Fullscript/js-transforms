@@ -216,6 +216,170 @@ const Component = () => {
         });
       });
     });
+
+    describe("when flipper variable to remove is part of an inline if statement as a single UnaryExpression", () => {
+      it("removes the if statement", () => {
+        const code = `
+import { useFlippers } from "@shared/hooks";
+
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+  const loadingState = "Loading...";
+
+  if (!isFlipperEnabled) return null;
+
+  return (
+    <div data-testid="flipper-disabled-div">
+      {loadingState}
+    </div>
+  );
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(
+              `
+const Component = () => {
+  const loadingState = "Loading...";
+
+  return (
+    <div data-testid="flipper-disabled-div">
+      {loadingState}
+    </div>
+  );
+};`
+            );
+          },
+        });
+      });
+    });
+
+    describe("when flipper variable to remove is part of if statement with a block as a single UnaryExpression", () => {
+      it("removes the if statement", () => {
+        const code = `
+import { useFlippers } from "@shared/hooks";
+
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+  const loadingState = "Loading...";
+
+  if (!isFlipperEnabled) {
+    return null
+  }
+
+  return (
+    <div data-testid="flipper-disabled-div">
+      {loadingState}
+    </div>
+  );
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(
+              `
+const Component = () => {
+  const loadingState = "Loading...";
+
+  return (
+    <div data-testid="flipper-disabled-div">
+      {loadingState}
+    </div>
+  );
+};`
+            );
+          },
+        });
+      });
+    });
+
+    describe("when flipper variable to remove is part of if statement as an || UnaryExpression on the right side", () => {
+      it("removes the flipper unary condition", () => {
+        const code = `
+import { useFlippers } from "@shared/hooks";
+
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
+  if (isAdminImpersonatingOnProd || !isFlipperEnabled) return null;
+
+  return (
+    <>
+      <ComponentOne />
+      <ComponentTwo/>
+    </>
+  );
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(
+              `
+const Component = () => {
+  const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
+  if (isAdminImpersonatingOnProd) return null;
+
+  return (
+    <>
+      <ComponentOne />
+      <ComponentTwo/>
+    </>
+  );
+};`
+            );
+          },
+        });
+      });
+    });
+
+    describe("when flipper variable to remove is part of if statement as an || UnaryExpression on the left side", () => {
+      it("removes the flipper unary condition", () => {
+        const code = `
+import { useFlippers } from "@shared/hooks";
+
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
+  if (!isFlipperEnabled || isAdminImpersonatingOnProd) return null;
+
+  return (
+    <>
+      <ComponentOne />
+      <ComponentTwo/>
+    </>
+  );
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(
+              `
+const Component = () => {
+  const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
+  if (isAdminImpersonatingOnProd) return null;
+
+  return (
+    <>
+      <ComponentOne />
+      <ComponentTwo/>
+    </>
+  );
+};`
+            );
+          },
+        });
+      });
+    });
   });
 
   describe("JSXExpressionContainer", () => {

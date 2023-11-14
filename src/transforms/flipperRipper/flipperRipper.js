@@ -1,6 +1,5 @@
-import { print, parse, types } from "recast";
-
 const FLIPPERS_HOOK_NAME = "useFlippers";
+const FLIPPERS_PROVIDER_NANE = "FlippersProvider";
 
 let parentNode = null;
 let flipperVariableToRemove = null;
@@ -76,7 +75,7 @@ const removeFlippersProviderImport = () => {
     // just remove useFlippers specifier
     flippersProviderImportDeclarationPath.node.specifiers =
       flippersProviderImportDeclarationPath.node.specifiers?.filter(
-        (specifier) => specifier.imported.name !== "FlippersProvider"
+        (specifier) => specifier.imported.name !== FLIPPERS_PROVIDER_NANE
       );
   }
 
@@ -181,7 +180,7 @@ const transform = ({ builder, options }) => {
       // </FlippersProvider>
       const { openingElement } = path.node;
 
-      if (openingElement.name.name === "FlippersProvider") {
+      if (openingElement.name.name === FLIPPERS_PROVIDER_NANE) {
         const flipperJSXAttribute = openingElement.attributes.find(
           (attribute) => attribute.name.name === "flippers"
         );
@@ -239,7 +238,7 @@ const transform = ({ builder, options }) => {
       // (isFlipperEnabled && isFoo) || (isFlipperEnabled && isBar)
       if (path.node.left.type === "LogicalExpression") {
         path.node.left = transformLogicalExpression(path.node.left);
-      } else if (path.node.left.type === "Identifier") {
+      } else if (isIdentifierAndVariableToRemove(path.node.left)) {
         // case where we are doing a simple `isFlipperEnabled && styles.foo`
         path.replace(transformLogicalExpression(path.node));
         // No longer a LogicalExpression, lets stop visiting
@@ -251,22 +250,34 @@ const transform = ({ builder, options }) => {
       }
 
       // !isFlipperEnabled && styles.someStyles
-      if (path.node.left.type === "UnaryExpression") {
-        if (isIdentifierAndVariableToRemove(path.node.left.argument)) {
-          removeParentJSXAttribute(path);
-        }
+      if (
+        path.node.left.type === "UnaryExpression" &&
+        isIdentifierAndVariableToRemove(path.node.left.argument) &&
+        path.parentPath?.node?.type === "JSXExpressionContainer"
+      ) {
+        removeParentJSXAttribute(path);
+      }
+
+      // if (!isFlipperEnabled || someOtherBooleanLike) return null;
+      if (
+        path.node.operator === "||" &&
+        path.node.left.type === "UnaryExpression" &&
+        isIdentifierAndVariableToRemove(path.node.left.argument)
+      ) {
+        path.replace(path.node.right);
+      }
+
+      // if (someOtherBooleanLike || !isFlipperEnabled) return null;
+      if (
+        path.node.operator === "||" &&
+        path.node.right.type === "UnaryExpression" &&
+        isIdentifierAndVariableToRemove(path.node.right.argument)
+      ) {
+        path.replace(path.node.left);
       }
     },
     visitIfStatement(path) {
-      // TODO: None of this account for UnaryExpressions
-      // ex: ```
-      // if (!isFlipperEnabled) return;
-      // return "something when flipper is enabled";
-      // ```
-      if (
-        path.node.test.type === "Identifier" &&
-        path.node.test.name === flipperVariableToRemove
-      ) {
+      if (isIdentifierAndVariableToRemove(path.node.test)) {
         if (path.node.consequent.type === "BlockStatement") {
           //if (isFlipperEnabled) {
           //  return "bla";
@@ -311,6 +322,12 @@ const transform = ({ builder, options }) => {
           const newBody = path.parentPath.node.body.slice(0, indexToReplace);
           path.parentPath.node.body = [...newBody, path.node.consequent];
         }
+      } else if (
+        path.node.test.type === "UnaryExpression" &&
+        path.node.test.argument.name === flipperVariableToRemove
+      ) {
+        // if (!isFlipperEnabled) return;
+        path.prune();
       }
     },
     visitImportDeclaration(path) {
@@ -334,7 +351,7 @@ const transform = ({ builder, options }) => {
           (specifier) => {
             if (
               specifier.type === "ImportSpecifier" &&
-              specifier.imported.name === "FlippersProvider"
+              specifier.imported.name === FLIPPERS_PROVIDER_NANE
             ) {
               flippersProviderImportDeclarationPath = path;
               return true;
