@@ -411,4 +411,26 @@ const ComponentTwo = () => {
       });
     });
   });
+
+  describe("TSUnionType", () => {
+    describe("when the union contains the flipper to remove", () => {
+      it("removes that flipper from the union", () => {
+        const code = `
+export type BaseFlipper =
+  | "flipper_name"
+  | "foo_flipper"
+  | "bar_flipper";`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+export type BaseFlipper =
+  "foo_flipper" | "bar_flipper";`);
+          },
+        });
+      });
+    });
+  });
 });

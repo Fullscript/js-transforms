@@ -360,6 +360,13 @@ const transform = ({ builder, options }) => {
         }
       }
     },
+    visitTSUnionType(path) {
+      // remove flipper from TypeUnion
+      // export type BaseFlippers = "foo_flipper" | "bar_flipper";
+      path.node.types = path.node.types.filter(
+        (type) => type?.literal?.value !== flipperNameToRemove
+      );
+    },
     visitVariableDeclaration(path) {
       const declaration = path.node.declarations[0];
 
