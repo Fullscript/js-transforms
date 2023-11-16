@@ -777,7 +777,7 @@ const { data } = useSomeQuery({
       });
     });
 
-    describe.only("whenever flipperVariable is used as a route flipper check", () => {
+    describe("whenever flipperVariable is used as a route flipper check", () => {
       it("removes the flipper property", () => {
         const code = `const routes = [{
   path: "/some/path",

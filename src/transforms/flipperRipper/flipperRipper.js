@@ -1,14 +1,28 @@
+import {
+  containsSpecifierWithName,
+  isBlockStatement,
+  isCallExpressionWithName,
+  isIdentifierWithName,
+  isJSXAttribute,
+  isJSXElement,
+  isJSXExpressionContainer,
+  isJSXFragment,
+  isLogicalExpression,
+  isReturnStatement,
+  isStringLiteral,
+  isUnaryExpression,
+  isUnaryExpressionWithName,
+  isVariableDeclarator,
+  removeImportSpecifier,
+} from "../../astUtils";
+
 const FLIPPERS_HOOK_NAME = "useFlippers";
 const FLIPPERS_PROVIDER_NANE = "FlippersProvider";
 
 let parentNode = null;
 let flipperVariableToRemove = null;
-let useFlippersSpecifierIndex = null;
-let flippersProviderSpecifierIndex = null;
 let flipperImportDeclarationPath = null;
 let flippersProviderImportDeclarationPath = null;
-let shouldRemoveUseFlippersDeclaration = false;
-let shouldRemoveFlippersProviderDeclaration = false;
 let flipperNameToRemove = null;
 
 /**
@@ -28,59 +42,7 @@ let flipperNameToRemove = null;
  * @returns {boolean}
  */
 const isIdentifierAndVariableToRemove = (node) => {
-  return node.type === "Identifier" && node.name === flipperVariableToRemove;
-};
-
-/**
- * Is the specified node a useFlippers CallExpression?
- * If so return true, false otherwise.
- *
- * @param {import("ast-types/gen/kinds").CallExpressionKind} node
- * @returns {boolean}
- */
-const isUseFlippersCallExpression = (node) => {
-  return (
-    node?.type === "CallExpression" && node?.callee?.name === FLIPPERS_HOOK_NAME
-  );
-};
-
-/**
- * Remove the useFlippers ImportSecifier or then entire ImportDeclaration
- *
- * @return {void}
- */
-const removeUseFlippersImport = () => {
-  if (shouldRemoveUseFlippersDeclaration) {
-    // remove entire import declaration
-    flipperImportDeclarationPath.prune();
-  } else if (flipperImportDeclarationPath) {
-    // just remove useFlippers specifier
-    flipperImportDeclarationPath.node.specifiers =
-      flipperImportDeclarationPath.node.specifiers?.filter(
-        (specifier) => specifier.imported.name !== FLIPPERS_HOOK_NAME
-      );
-  }
-};
-
-/**
- * Remove the FlippersProvider ImportSecifier or then entire ImportDeclaration
- *
- * @return {void}
- */
-const removeFlippersProviderImport = () => {
-  if (shouldRemoveFlippersProviderDeclaration) {
-    // remove entire import declaration
-    flippersProviderImportDeclarationPath.prune();
-  } else if (flippersProviderImportDeclarationPath) {
-    // just remove useFlippers specifier
-    flippersProviderImportDeclarationPath.node.specifiers =
-      flippersProviderImportDeclarationPath.node.specifiers?.filter(
-        (specifier) => specifier.imported.name !== FLIPPERS_PROVIDER_NANE
-      );
-  }
-
-  // Prevent it from running twice if multiplate instances of FlippersProvider exists
-  shouldRemoveFlippersProviderDeclaration = false;
+  return isIdentifierWithName(node, flipperVariableToRemove);
 };
 
 /**
@@ -99,7 +61,7 @@ const removeUseFlippers = (
   if (removeFullExpression) {
     path.prune();
     // Only remove useFlippers import if useFlippers CallExpression is completely removed
-    removeUseFlippersImport();
+    removeImportSpecifier(flipperImportDeclarationPath, FLIPPERS_HOOK_NAME);
   } else {
     // Remove argument for the specified flipper
     callExpression.arguments = callExpression.arguments.filter((argument) => {
@@ -122,20 +84,20 @@ const removeUseFlippers = (
 const removeParentJSXAttribute = (path) => {
   if (!path.parentPath.node?.type) debugger;
   if (
-    path.parentPath.node.type === "JSXExpressionContainer" &&
-    (path.parentPath.parentPath.node.type === "JSXElement" ||
-      path.parentPath.parentPath.node.type === "JSXFragment")
+    isJSXExpressionContainer(path.parentPath.node) &&
+    (isJSXElement(path.parentPath.parentPath.node) ||
+      isJSXFragment(path.parentPath.parentPath.node))
   ) {
     // <div>{!isFlipperEnabled && <SomeComponent />}</div>
     // OR
     // <>{!isFlipperEnabled && <SomeComponent />}</>
     path.parentPath.prune();
   } else if (
-    path.parentPath.node.type !== "JSXAttribute" &&
-    path.parentPath?.node?.type !== "JSXElement"
+    !isJSXAttribute(path.parentPath.node) &&
+    !isJSXElement(path.parentPath?.node)
   ) {
     removeParentJSXAttribute(path.parentPath);
-  } else if (path.parentPath.node.type === "JSXAttribute") {
+  } else if (isJSXAttribute(path.parentPath.node)) {
     // css={!isFlipperEnabled && styles.foo}
     path.parentPath.prune();
   }
@@ -148,7 +110,7 @@ const removeParentJSXAttribute = (path) => {
  * @returns {void}
  */
 const removeUseQuery = (path) => {
-  if (path.node.type === "VariableDeclarator") {
+  if (isVariableDeclarator(path.node)) {
     path.prune();
   } else {
     removeUseQuery(path.parentPath);
@@ -160,14 +122,14 @@ const removeUseQuery = (path) => {
  * @returns {import("ast-types/gen/kinds").ExpressionKind}
  */
 const transformLogicalExpression = (node) => {
-  if (node.left.type === "LogicalExpression") {
+  if (isLogicalExpression(node.left)) {
     node.left = transformLogicalExpression(node.left);
   } else if (isIdentifierAndVariableToRemove(node.left)) {
     // If logicalExpression and left is flipperVariable to remove, we just return right
     return node.right;
   }
 
-  if (node.right.type === "LogicalExpression") {
+  if (isLogicalExpression(node.right)) {
     node.right = transformLogicalExpression(node.right);
   } else if (isIdentifierAndVariableToRemove(node.right)) {
     // If logicalExpression and right is flipperVariable to remove, we just return left
@@ -188,10 +150,6 @@ const transform = ({ builder, options }) => {
   flipperVariableToRemove = null;
   flipperImportDeclarationPath = null;
   flippersProviderImportDeclarationPath = null;
-  useFlippersSpecifierIndex = null;
-  flippersProviderSpecifierIndex = null;
-  shouldRemoveUseFlippersDeclaration = false;
-  shouldRemoveFlippersProviderDeclaration = false;
 
   return {
     visitProgram(path) {
@@ -206,8 +164,7 @@ const transform = ({ builder, options }) => {
       if (isIdentifierAndVariableToRemove(path.node.test)) {
         path.replace(path.node.consequent);
       } else if (
-        path.node.test.type === "UnaryExpression" &&
-        path.node.test.argument.name === flipperVariableToRemove
+        isUnaryExpressionWithName(path.node, flipperVariableToRemove)
       ) {
         // const something = !isFlipperEnabled ? "foo" : "bar";
         path.replace(path.node.alternate);
@@ -226,8 +183,8 @@ const transform = ({ builder, options }) => {
         );
 
         if (
-          flipperJSXAttribute.type === "JSXAttribute" &&
-          flipperJSXAttribute.value.type === "JSXExpressionContainer" &&
+          isJSXAttribute(flipperJSXAttribute) &&
+          isJSXExpressionContainer(flipperJSXAttribute.value) &&
           flipperJSXAttribute.value.expression?.elements?.length > 0
         ) {
           // look through the flippers props and find the flipperToRemove
@@ -242,7 +199,7 @@ const transform = ({ builder, options }) => {
             if (flipperJSXAttribute.value.expression.elements.length === 1) {
               // get all JSXElement children of the `FlippersProvider` component
               const children = path.node.children.reduce((acc, child) => {
-                if (child.type === "JSXElement") {
+                if (isJSXElement(child)) {
                   acc.push(child);
                 }
 
@@ -261,7 +218,12 @@ const transform = ({ builder, options }) => {
               } else {
                 path.replace(children[0]);
               }
-              removeFlippersProviderImport();
+
+              // Remove Import for FlipperProvider
+              removeImportSpecifier(
+                flippersProviderImportDeclarationPath,
+                FLIPPERS_PROVIDER_NANE
+              );
             } else {
               // remove just the flipper to remove from the flippers array
               flipperJSXAttribute.value.expression.elements =
@@ -275,13 +237,13 @@ const transform = ({ builder, options }) => {
     },
     visitIfStatement(path) {
       if (isIdentifierAndVariableToRemove(path.node.test)) {
-        if (path.node.consequent.type === "BlockStatement") {
+        if (isBlockStatement(path.node.consequent)) {
           //if (isFlipperEnabled) {
           //  return "bla";
           // }
 
           // If last statement in if condition that we are unwrapping is a return statement, then remove the rest of body afterwards
-          if (path.node.consequent.body.at(-1).type === "ReturnStatement") {
+          if (isReturnStatement(path.node.consequent.body.at(-1))) {
             // We must go up to the parent to be able to modify the block this IfStatement is part of
             const indexToReplace = path.parentPath.node.body.indexOf(path.node);
 
@@ -310,7 +272,7 @@ const transform = ({ builder, options }) => {
               []
             );
           }
-        } else if (path.node.consequent.type === "ReturnStatement") {
+        } else if (isReturnStatement(path.node.consequent)) {
           //if (isFlipperEnabled) return "bla";
 
           // We must go up to the parent to be able to modify the block this IfStatement is part of
@@ -320,8 +282,7 @@ const transform = ({ builder, options }) => {
           path.parentPath.node.body = [...newBody, path.node.consequent];
         }
       } else if (
-        path.node.test.type === "UnaryExpression" &&
-        path.node.test.argument.name === flipperVariableToRemove
+        isUnaryExpressionWithName(path.node, flipperVariableToRemove)
       ) {
         // if (!isFlipperEnabled) return;
         path.prune();
@@ -330,54 +291,19 @@ const transform = ({ builder, options }) => {
     visitImportDeclaration(path) {
       if (path.node.specifiers?.length > 0) {
         // If the useFlippers exists within this ImportDeclaration, save it's index
-        useFlippersSpecifierIndex = path.node.specifiers?.findIndex(
-          (specifier) => {
-            if (
-              specifier.type === "ImportSpecifier" &&
-              specifier.imported.name === FLIPPERS_HOOK_NAME
-            ) {
-              flipperImportDeclarationPath = path;
-              return true;
-            }
-
-            return false;
-          }
-        );
-
-        flippersProviderSpecifierIndex = path.node.specifiers?.findIndex(
-          (specifier) => {
-            if (
-              specifier.type === "ImportSpecifier" &&
-              specifier.imported.name === FLIPPERS_PROVIDER_NANE
-            ) {
-              flippersProviderImportDeclarationPath = path;
-              return true;
-            }
-
-            return false;
-          }
-        );
-
-        // If useFlippers is the only specifier, set flag to remove the entire ImportDeclaration
-        if (
-          useFlippersSpecifierIndex > -1 &&
-          path.node.specifiers?.length === 1
-        ) {
-          shouldRemoveUseFlippersDeclaration = true;
+        if (containsSpecifierWithName(path.node, FLIPPERS_HOOK_NAME)) {
+          flipperImportDeclarationPath = path;
         }
 
-        if (
-          flippersProviderSpecifierIndex > -1 &&
-          path.node.specifiers?.length === 1
-        ) {
-          shouldRemoveFlippersProviderDeclaration = true;
+        if (containsSpecifierWithName(path.node, FLIPPERS_PROVIDER_NANE)) {
+          flippersProviderImportDeclarationPath = path;
         }
       }
     },
     visitLogicalExpression(path) {
       // side before `||` is considered left, side after is right
       // (isFlipperEnabled && isFoo) || (isFlipperEnabled && isBar)
-      if (path.node.left.type === "LogicalExpression") {
+      if (isLogicalExpression(path.node.left)) {
         path.node.left = transformLogicalExpression(path.node.left);
       } else if (isIdentifierAndVariableToRemove(path.node.left)) {
         // case where we are doing a simple `isFlipperEnabled && styles.foo`
@@ -386,7 +312,7 @@ const transform = ({ builder, options }) => {
         return;
       }
 
-      if (path.node.right.type === "LogicalExpression") {
+      if (isLogicalExpression(path.node.right)) {
         path.node.right = transformLogicalExpression(path.node.right);
       } else if (isIdentifierAndVariableToRemove(path.node.right)) {
         // case where we are doing a simple `isSomethingElse && isFlipperEnabled`
@@ -397,9 +323,9 @@ const transform = ({ builder, options }) => {
 
       // !isFlipperEnabled && styles.someStyles
       if (
-        path.node.left.type === "UnaryExpression" &&
+        isUnaryExpression(path.node.left) &&
         isIdentifierAndVariableToRemove(path.node.left.argument) &&
-        path.parentPath?.node?.type === "JSXExpressionContainer"
+        isJSXExpressionContainer(path.parentPath?.node)
       ) {
         removeParentJSXAttribute(path);
       }
@@ -407,7 +333,7 @@ const transform = ({ builder, options }) => {
       // if (!isFlipperEnabled || someOtherBooleanLike) return null;
       if (
         path.node.operator === "||" &&
-        path.node.left.type === "UnaryExpression" &&
+        isUnaryExpression(path.node.left) &&
         isIdentifierAndVariableToRemove(path.node.left.argument)
       ) {
         path.replace(path.node.right);
@@ -416,18 +342,17 @@ const transform = ({ builder, options }) => {
       // if (someOtherBooleanLike || !isFlipperEnabled) return null;
       if (
         path.node.operator === "||" &&
-        path.node.right.type === "UnaryExpression" &&
+        isUnaryExpression(path.node.right) &&
         isIdentifierAndVariableToRemove(path.node.right.argument)
       ) {
         path.replace(path.node.left);
       }
     },
     visitObjectProperty(path) {
-      debugger;
       // const { data, loading } = useQuery({ skip: !isFlipperEnabled });
       if (
         path.node.key.name === "skip" &&
-        path.node.value.type === "UnaryExpression" &&
+        isUnaryExpression(path.node.value) &&
         path.node.value.argument.name === flipperVariableToRemove
       ) {
         path.prune();
@@ -439,7 +364,7 @@ const transform = ({ builder, options }) => {
         removeUseQuery(path.parentPath);
       } else if (
         path.node.key.name === "flipper" &&
-        path.node.value.type === "StringLiteral" &&
+        isStringLiteral(path.node.value) &&
         path.node.value.value === flipperNameToRemove
       ) {
         // const routes = [{
@@ -464,7 +389,7 @@ const transform = ({ builder, options }) => {
       if (declaration.type !== "VariableDeclarator") return;
 
       // Check to see if a CallExpression is `const [] = useFlippers()`
-      if (isUseFlippersCallExpression(declaration.init)) {
+      if (isCallExpressionWithName(declaration.init, FLIPPERS_HOOK_NAME)) {
         const callExpression = declaration.init;
 
         // find the argument index of the flipper to remove: `useFlippers("flipper-one", "flipper-two");`
