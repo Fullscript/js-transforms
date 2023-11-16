@@ -120,10 +120,38 @@ const removeUseFlippers = (
  * @returns {void}
  */
 const removeParentJSXAttribute = (path) => {
-  if (path.parentPath.node.type !== "JSXAttribute" && path.parentPath) {
+  if (!path.parentPath.node?.type) debugger;
+  if (
+    path.parentPath.node.type === "JSXExpressionContainer" &&
+    (path.parentPath.parentPath.node.type === "JSXElement" ||
+      path.parentPath.parentPath.node.type === "JSXFragment")
+  ) {
+    // <div>{!isFlipperEnabled && <SomeComponent />}</div>
+    // OR
+    // <>{!isFlipperEnabled && <SomeComponent />}</>
+    path.parentPath.prune();
+  } else if (
+    path.parentPath.node.type !== "JSXAttribute" &&
+    path.parentPath?.node?.type !== "JSXElement"
+  ) {
     removeParentJSXAttribute(path.parentPath);
   } else if (path.parentPath.node.type === "JSXAttribute") {
+    // css={!isFlipperEnabled && styles.foo}
     path.parentPath.prune();
+  }
+};
+
+/**
+ * Remove the entire useQuery call that was skipped whenever isFlipperEnabled
+ *
+ * @param {import("ast-types/lib/node-path").NodePath<any, any>} path
+ * @returns {void}
+ */
+const removeUseQuery = (path) => {
+  if (path.node.type === "VariableDeclarator") {
+    path.prune();
+  } else {
+    removeUseQuery(path.parentPath);
   }
 };
 
@@ -171,6 +199,18 @@ const transform = ({ builder, options }) => {
       // This is contrary to other parsers so I just want to set it once per file
       if (!parentNode) {
         parentNode = path.node;
+      }
+    },
+    visitConditionalExpression(path) {
+      // const something = isFlipperEnabled ? "foo" : "bar";
+      if (isIdentifierAndVariableToRemove(path.node.test)) {
+        path.replace(path.node.consequent);
+      } else if (
+        path.node.test.type === "UnaryExpression" &&
+        path.node.test.argument.name === flipperVariableToRemove
+      ) {
+        // const something = !isFlipperEnabled ? "foo" : "bar";
+        path.replace(path.node.alternate);
       }
     },
     visitJSXElement(path) {
@@ -231,49 +271,6 @@ const transform = ({ builder, options }) => {
             }
           }
         }
-      }
-    },
-    visitLogicalExpression(path) {
-      // side before `||` is considered left, side after is right
-      // (isFlipperEnabled && isFoo) || (isFlipperEnabled && isBar)
-      if (path.node.left.type === "LogicalExpression") {
-        path.node.left = transformLogicalExpression(path.node.left);
-      } else if (isIdentifierAndVariableToRemove(path.node.left)) {
-        // case where we are doing a simple `isFlipperEnabled && styles.foo`
-        path.replace(transformLogicalExpression(path.node));
-        // No longer a LogicalExpression, lets stop visiting
-        return;
-      }
-
-      if (path.node.right.type === "LogicalExpression") {
-        path.node.right = transformLogicalExpression(path.node.right);
-      }
-
-      // !isFlipperEnabled && styles.someStyles
-      if (
-        path.node.left.type === "UnaryExpression" &&
-        isIdentifierAndVariableToRemove(path.node.left.argument) &&
-        path.parentPath?.node?.type === "JSXExpressionContainer"
-      ) {
-        removeParentJSXAttribute(path);
-      }
-
-      // if (!isFlipperEnabled || someOtherBooleanLike) return null;
-      if (
-        path.node.operator === "||" &&
-        path.node.left.type === "UnaryExpression" &&
-        isIdentifierAndVariableToRemove(path.node.left.argument)
-      ) {
-        path.replace(path.node.right);
-      }
-
-      // if (someOtherBooleanLike || !isFlipperEnabled) return null;
-      if (
-        path.node.operator === "||" &&
-        path.node.right.type === "UnaryExpression" &&
-        isIdentifierAndVariableToRemove(path.node.right.argument)
-      ) {
-        path.replace(path.node.left);
       }
     },
     visitIfStatement(path) {
@@ -375,6 +372,83 @@ const transform = ({ builder, options }) => {
         ) {
           shouldRemoveFlippersProviderDeclaration = true;
         }
+      }
+    },
+    visitLogicalExpression(path) {
+      // side before `||` is considered left, side after is right
+      // (isFlipperEnabled && isFoo) || (isFlipperEnabled && isBar)
+      if (path.node.left.type === "LogicalExpression") {
+        path.node.left = transformLogicalExpression(path.node.left);
+      } else if (isIdentifierAndVariableToRemove(path.node.left)) {
+        // case where we are doing a simple `isFlipperEnabled && styles.foo`
+        path.replace(transformLogicalExpression(path.node));
+        // No longer a LogicalExpression, lets stop visiting
+        return;
+      }
+
+      if (path.node.right.type === "LogicalExpression") {
+        path.node.right = transformLogicalExpression(path.node.right);
+      } else if (isIdentifierAndVariableToRemove(path.node.right)) {
+        // case where we are doing a simple `isSomethingElse && isFlipperEnabled`
+        path.replace(transformLogicalExpression(path.node));
+        // No longer a LogicalExpression, lets stop visiting
+        return;
+      }
+
+      // !isFlipperEnabled && styles.someStyles
+      if (
+        path.node.left.type === "UnaryExpression" &&
+        isIdentifierAndVariableToRemove(path.node.left.argument) &&
+        path.parentPath?.node?.type === "JSXExpressionContainer"
+      ) {
+        removeParentJSXAttribute(path);
+      }
+
+      // if (!isFlipperEnabled || someOtherBooleanLike) return null;
+      if (
+        path.node.operator === "||" &&
+        path.node.left.type === "UnaryExpression" &&
+        isIdentifierAndVariableToRemove(path.node.left.argument)
+      ) {
+        path.replace(path.node.right);
+      }
+
+      // if (someOtherBooleanLike || !isFlipperEnabled) return null;
+      if (
+        path.node.operator === "||" &&
+        path.node.right.type === "UnaryExpression" &&
+        isIdentifierAndVariableToRemove(path.node.right.argument)
+      ) {
+        path.replace(path.node.left);
+      }
+    },
+    visitObjectProperty(path) {
+      debugger;
+      // const { data, loading } = useQuery({ skip: !isFlipperEnabled });
+      if (
+        path.node.key.name === "skip" &&
+        path.node.value.type === "UnaryExpression" &&
+        path.node.value.argument.name === flipperVariableToRemove
+      ) {
+        path.prune();
+      } else if (
+        path.node.key.name === "skip" &&
+        isIdentifierAndVariableToRemove(path.node.value)
+      ) {
+        // const { data, loading } = useQuery({ skip: isFlipperEnabled });
+        removeUseQuery(path.parentPath);
+      } else if (
+        path.node.key.name === "flipper" &&
+        path.node.value.type === "StringLiteral" &&
+        path.node.value.value === flipperNameToRemove
+      ) {
+        // const routes = [{
+        //   path: "/some/path",
+        //   key: "path_key",
+        //   element: <LazyPage />,
+        //   flipper: "flipper_name",
+        // }];
+        path.prune();
       }
     },
     visitTSUnionType(path) {

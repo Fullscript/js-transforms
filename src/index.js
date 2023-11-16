@@ -1,4 +1,4 @@
-import { readFile, readFileSync, writeFile } from "fs";
+import { readFileSync, writeFile } from "fs";
 import glob from "glob";
 import { print } from "recast";
 
@@ -7,6 +7,7 @@ import { AVAILABLE_TRANSFORMS } from "./availableTransforms.js";
 import { validTransformName } from "./validTransformName.js";
 import { dryRun, filePaths, transformToRun, options, verbose } from "./cli.js";
 import { dryRunOutput } from "./dryRunOutput.js";
+import { verboseOutput } from "./verboseOutput.js";
 import { transformer } from "./transformer.js";
 
 if (!validTransformName(transformToRun)) {
@@ -23,31 +24,21 @@ const transformPath = glob.sync(`./src/transforms/**/${transformToRun}.js`)[0];
 const { transform } = await import(transformPath.replace("./src", "."));
 
 filePaths.forEach((filePath) => {
-  if (verbose) {
-    console.log(`reading: ${filePath}`);
-  }
+  verboseOutput(`reading: ${filePath}`);
   const code = readFileSync(filePath, { encoding: "utf-8", flag: "r" });
 
-  if (verbose) {
-    console.log(`parsing: ${filePath}`);
-  }
+  verboseOutput(`parsing: ${filePath}`);
   const ast = parseCode(code);
 
-  if (verbose) {
-    console.log(`transforming: ${filePath}`);
-  }
+  verboseOutput(`transforming: ${filePath}`);
   transformer({
     ast,
     transformToRun: transform,
     onTransformed: (node) => {
-      if (verbose) {
-        console.log("printing code changes");
-      }
+      verboseOutput("printing code changes");
       const transformedCode = print(node).code;
 
-      if (verbose) {
-        console.log(`Writing to: ${filePath}`);
-      }
+      verboseOutput(`Writing to: ${filePath}`);
       if (dryRun) {
         dryRunOutput(transformedCode, filePath);
       } else {

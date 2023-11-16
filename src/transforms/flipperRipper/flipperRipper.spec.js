@@ -101,6 +101,132 @@ const [isFlipperEnabled, isAnotherFlipperEnabled] = useFlippers("flipper_name", 
     });
   });
 
+  describe("LogicalExpression", () => {
+    describe("when a LogicalExpression containing a flipper check is rendered inside a component", () => {
+      it("removes the flipper condition and leaves the component to render", () => {
+        const code = `
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  return <div>
+    {isFlipperEnabled && <PageFooter />}
+  </div>;
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const Component = () => {
+  return (
+    <div>
+      {<PageFooter />}
+    </div>
+  );
+};`);
+          },
+        });
+      });
+    });
+
+    describe("when a LogicalExpression containing a Unary flipper check is rendered inside a component", () => {
+      it("removes the entire JSXExpressionContainer", () => {
+        const code = `
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  return <div>
+    {!isFlipperEnabled && <PageFooter />}
+  </div>;
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const Component = () => {
+  return (
+    <div>
+
+    </div>
+  );
+};`);
+          },
+        });
+      });
+    });
+
+    describe("when a LogicalExpression containing a flipper check is rendered inside a fragment", () => {
+      it("removes the entire JSXExpressionContainer", () => {
+        const code = `
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  return <>{isFlipperEnabled && <PageFooter />}</>;
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const Component = () => {
+  return <>{<PageFooter />}</>;
+};`);
+          },
+        });
+      });
+    });
+
+    describe("when a LogicalExpression containing a Unary flipper check is rendered inside a fragment", () => {
+      it("removes the entire JSXExpressionContainer", () => {
+        const code = `
+const Component = () => {
+  const [isFlipperEnabled] = useFlippers("flipper_name");
+
+  return <>
+    {!isFlipperEnabled && <PageFooter />}
+  </>;
+};`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result).toEqual(`
+const Component = () => {
+  return <>
+
+  </>;
+};`);
+          },
+        });
+      });
+    });
+
+    describe("when a LogicalExpression containing a flipper check on the right side", () => {
+      it("removes the flipper check", () => {
+        const code = `
+import { useFlippers } from "@shared/utils";
+const [isFlipperEnabled] = useFlippers("flipper_name");
+const productName = isSomeOtherFlag && isFlipperEnabled ? "foo" : "bar";
+`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(
+              `const productName = isSomeOtherFlag ? "foo" : "bar";`
+            );
+          },
+        });
+      });
+    });
+  });
+
   describe("BlockStatement", () => {
     describe("when flipper variable to remove is part of if statement and has an early return", () => {
       it("unwraps the if statement and removes the default return/condition", () => {
@@ -570,6 +696,105 @@ const ComponentOne = () => {
 const ComponentTwo = () => {
   return <div />;
 }`);
+          },
+        });
+      });
+    });
+  });
+
+  describe("ConditionalExpression", () => {
+    describe("when flipper is part of a ternary statement", () => {
+      it("removes the flipper check", () => {
+        const code = `
+import { useFlippers } from "@shared/utils";
+const [isFlipperEnabled] = useFlippers("flipper_name");
+const productName = isFlipperEnabled ? "foo" : "bar";
+        `;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(`const productName = "foo";`);
+          },
+        });
+      });
+    });
+
+    describe("when flipper is part of a ternary statement as a UnaryExpression", () => {
+      it("removes the flipper check", () => {
+        const code = `
+import { useFlippers } from "@shared/utils";
+const [isFlipperEnabled] = useFlippers("flipper_name");
+const productName = !isFlipperEnabled ? "foo" : "bar";
+        `;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(`const productName = "bar";`);
+          },
+        });
+      });
+    });
+  });
+
+  describe("ObjectProperty", () => {
+    describe("whenever flipperVariable as a UnaryExpression is used for a query skip", () => {
+      it("removes the skip property", () => {
+        const code = `
+const [isFlipperEnabled] = useFlippers("flipper_name");
+const { data } = useSomeQuery({
+  skip: !isFlipperEnabled,
+});`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(`const { data } = useSomeQuery({});`);
+          },
+        });
+      });
+    });
+
+    describe("whenever flipperVariable is used for a query skip", () => {
+      it("removes the skip property", () => {
+        const code = `
+const [isFlipperEnabled] = useFlippers("flipper_name");
+const { data } = useSomeQuery({
+  skip: isFlipperEnabled,
+});`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual("");
+          },
+        });
+      });
+    });
+
+    describe.only("whenever flipperVariable is used as a route flipper check", () => {
+      it("removes the flipper property", () => {
+        const code = `const routes = [{
+  path: "/some/path",
+  key: "path_key",
+  element: <LazyPage />,
+  flipper: "flipper_name",
+}];`;
+
+        transformCode({
+          code,
+          options: ["flipper_name"],
+          onTransformed: (result) => {
+            expect(result.trim()).toEqual(`const routes = [{
+  path: "/some/path",
+  key: "path_key",
+  element: <LazyPage />
+}];`);
           },
         });
       });
