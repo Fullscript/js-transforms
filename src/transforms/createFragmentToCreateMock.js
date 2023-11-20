@@ -30,7 +30,7 @@ const transform = ({ builder, options }) => {
    * to
    * - { typeName: "Patient", overrides: { id, firstName: "John" }}
    */
-  const buildCreateMockParams = (node) => {
+  const buildCreateMockParams = node => {
     const id = node.arguments[0];
     let overrides = node.arguments[1] ?? builder.objectExpression([]);
 
@@ -49,9 +49,7 @@ const transform = ({ builder, options }) => {
       overrides = builder.objectExpression([builder.spreadElement(overrides)]);
     }
 
-    overrides.properties.unshift(
-      builder.objectProperty(builder.identifier("id"), id)
-    );
+    overrides.properties.unshift(builder.objectProperty(builder.identifier("id"), id));
 
     createMockParam.properties.push(
       builder.objectProperty(builder.identifier("overrides"), overrides)
@@ -66,9 +64,7 @@ const transform = ({ builder, options }) => {
    */
   const addCreateMockImport = () => {
     if (rtlImportNode) {
-      rtlImportNode.specifiers.push(
-        builder.importSpecifier(builder.identifier("createMock"))
-      );
+      rtlImportNode.specifiers.push(builder.importSpecifier(builder.identifier("createMock")));
     } else {
       // need to add via parentNode
       parentNode.body.unshift(
@@ -84,7 +80,7 @@ const transform = ({ builder, options }) => {
    * Determines if specifierName is contained within the list of import specifiers
    */
   const containsSpecifier = (node, specifierName) => {
-    return !!node.specifiers.find((specifier) => {
+    return !!node.specifiers.find(specifier => {
       return specifier?.imported?.name === specifierName;
     });
   };
@@ -92,8 +88,8 @@ const transform = ({ builder, options }) => {
   /**
    * Removes the createFragmentFunction from list of specifiers
    */
-  const removeCreateFragmentImport = (node) => {
-    return node.specifiers.filter((specifier) => {
+  const removeCreateFragmentImport = node => {
+    return node.specifiers.filter(specifier => {
       return specifier.imported.name !== createFragmentFunction;
     });
   };
@@ -113,10 +109,7 @@ const transform = ({ builder, options }) => {
 
       // verify if createMock is already imported via a @testing/rtl importDeclaration
       if (path.node.source.value === "@testing/rtl") {
-        const hasImportedCreateMock = containsSpecifier(
-          path.node,
-          "createMock"
-        );
+        const hasImportedCreateMock = containsSpecifier(path.node, "createMock");
 
         if (hasImportedCreateMock) {
           needToImportCreateMock = false;

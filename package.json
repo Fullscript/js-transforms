@@ -8,7 +8,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "transform": "node ./src/index.js"
+    "prettier-format": "prettier --write \"./src/**/*.js\"",
+    "prettier-check": "prettier --check \"./src/**/*.js\"",
+    "transform": "node ./src/index.js",
+    "transform-debug": "node --inspect-brk ./src/index.js",
+    "test": "vitest",
+    "test-debug": "node --inspect-brk ./node_modules/.bin/vitest ./src/index.js"
   },
   "dependencies": {
     "@babel/parser": "^7.20.7",
@@ -16,5 +21,9 @@
     "glob": "^8.0.3",
     "recast": "^0.22.0",
     "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "prettier": "^3.1.0",
+    "vitest": "^0.34.6"
   }
 }
