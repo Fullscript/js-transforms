@@ -4,8 +4,8 @@ import glob from "glob";
 const transforms = glob.sync("./src/transforms/**/*.js");
 
 const AVAILABLE_TRANSFORMS = transforms
-  .filter((transform) => !transform.endsWith("spec.js"))
-  .map((transform) => {
+  .filter(transform => !transform.endsWith("spec.js"))
+  .map(transform => {
     return transform
       .replace(/(\.\/src\/transforms\/|\.js)/gm, "")
       .split("/")

@@ -5,7 +5,7 @@ import { verbose } from "./cli.js";
  *
  * @param {string} log
  */
-const verboseOutput = (log) => {
+const verboseOutput = log => {
   if (verbose) {
     console.log(log);
   }

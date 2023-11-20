@@ -48,7 +48,7 @@ const transform = ({ builder, options }) => {
    * Determines if specifierName is contained within the list of import type specifiers
    */
   const containsSpecifier = (node, specifierName) => {
-    return !!node.specifiers.find((specifier) => {
+    return !!node.specifiers.find(specifier => {
       return specifier?.imported?.name === specifierName;
     });
   };
@@ -56,11 +56,11 @@ const transform = ({ builder, options }) => {
   /**
    * Replace existing expressions with modified ones, this map replaces specified colors with equivalent theme
    */
-  const convertColorsExpressionsToThemeExpressions = (expressions) => {
+  const convertColorsExpressionsToThemeExpressions = expressions => {
     // parse converts out theme.success.base for example with the equivalent AST
     const themeToReplaceWithAST = parse(themeToReplaceWith);
 
-    return expressions.map((cssExpression) => {
+    return expressions.map(cssExpression => {
       if (cssExpression.type === "MemberExpression") {
         // Convert the AST of colors.foobar into a string for comparison
         const serializedCssExpression = print(cssExpression).code;
@@ -96,20 +96,11 @@ const transform = ({ builder, options }) => {
    * Takes in a TemplateLiteral node, loops through its expressions and replaces any colors with the specified theme
    * Also wraps the TemplateLiteral in a function if we have converted a color to theme
    */
-  const convertColorsInTaggedExpression = (
-    node,
-    shouldWrapInThemeFunc = true
-  ) => {
-    node.quasi.expressions = convertColorsExpressionsToThemeExpressions(
-      node.quasi.expressions
-    );
+  const convertColorsInTaggedExpression = (node, shouldWrapInThemeFunc = true) => {
+    node.quasi.expressions = convertColorsExpressionsToThemeExpressions(node.quasi.expressions);
 
     // Import Theme type if it doesn't already exist, needed for changing colors to themes
-    if (
-      !hasImportedThemeType &&
-      !addedThemeImportType &&
-      convertedColorToTheme
-    ) {
+    if (!hasImportedThemeType && !addedThemeImportType && convertedColorToTheme) {
       addThemeTypeImport();
     }
 
@@ -137,10 +128,7 @@ const transform = ({ builder, options }) => {
     },
     visitImportDeclaration(path) {
       // verify if Theme is already imported via a @emotion/react importDeclaration
-      if (
-        !hasImportedThemeType &&
-        path.node.source.value === "@emotion/react"
-      ) {
+      if (!hasImportedThemeType && path.node.source.value === "@emotion/react") {
         hasImportedThemeType = containsSpecifier(path.node, "Theme");
       }
     },
@@ -149,28 +137,22 @@ const transform = ({ builder, options }) => {
       // For most cases like export const container = css`...`;
       if (
         path.node.init.type === "TaggedTemplateExpression" &&
-        (path.node.init.tag.name === "css" ||
-          path.node.init.tag.name === "keyframes")
+        (path.node.init.tag.name === "css" || path.node.init.tag.name === "keyframes")
       ) {
         path.node.init = convertColorsInTaggedExpression(path.node.init);
       } else if (
         // For cases where theme is already partially used but colors still exist like const container = (theme: Theme) => css`...`;
         path.node.init.type === "ArrowFunctionExpression" &&
-        (path.node.init.body.tag?.name === "css" ||
-          path.node.init.body.tag?.name === "keyframes")
+        (path.node.init.body.tag?.name === "css" || path.node.init.body.tag?.name === "keyframes")
       ) {
-        path.node.init.body = convertColorsInTaggedExpression(
-          path.node.init.body,
-          false
-        );
+        path.node.init.body = convertColorsInTaggedExpression(path.node.init.body, false);
       }
     },
     // For cases where colors is used within an object for like base: css`...`,
     visitObjectProperty(path) {
       if (
         path.node.value.type === "TaggedTemplateExpression" &&
-        (path.node.value.tag.name === "css" ||
-          path.node.value.tag.name === "keyframes")
+        (path.node.value.tag.name === "css" || path.node.value.tag.name === "keyframes")
       ) {
         path.node.value = convertColorsInTaggedExpression(path.node.value);
       }

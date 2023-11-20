@@ -13,7 +13,7 @@ import { transformer } from "./transformer.js";
 if (!validTransformName(transformToRun)) {
   console.log(
     `\n${transformToRun} is not a valid transform name. Available transforms are:\n${AVAILABLE_TRANSFORMS.map(
-      (availableTransform) => `- ${availableTransform}`
+      availableTransform => `- ${availableTransform}`
     ).join("\n")}\n`
   );
 
@@ -23,7 +23,7 @@ if (!validTransformName(transformToRun)) {
 const transformPath = glob.sync(`./src/transforms/**/${transformToRun}.js`)[0];
 const { transform } = await import(transformPath.replace("./src", "."));
 
-filePaths.forEach((filePath) => {
+filePaths.forEach(filePath => {
   verboseOutput(`reading: ${filePath}`);
   const code = readFileSync(filePath, { encoding: "utf-8", flag: "r" });
 
@@ -31,24 +31,23 @@ filePaths.forEach((filePath) => {
   const ast = parseCode(code);
 
   verboseOutput(`transforming: ${filePath}`);
-  transformer({
+  const node = transformer({
     ast,
     transformToRun: transform,
-    onTransformed: (node) => {
-      verboseOutput("printing code changes");
-      const transformedCode = print(node).code;
-
-      verboseOutput(`Writing to: ${filePath}`);
-      if (dryRun) {
-        dryRunOutput(transformedCode, filePath);
-      } else {
-        writeFile(filePath, transformedCode, (writeError) => {
-          if (writeError) {
-            throw writeError();
-          }
-        });
-      }
-    },
     options,
   });
+
+  verboseOutput("printing code changes");
+  const transformedCode = print(node).code;
+
+  verboseOutput(`Writing to: ${filePath}`);
+  if (dryRun) {
+    dryRunOutput(transformedCode, filePath);
+  } else {
+    writeFile(filePath, transformedCode, writeError => {
+      if (writeError) {
+        throw writeError();
+      }
+    });
+  }
 });

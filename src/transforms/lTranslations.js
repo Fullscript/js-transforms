@@ -19,8 +19,8 @@ const transform = ({ ast, builder, options }) => {
   const importPath = options[0];
 
   return {
-    visitImportDeclaration: (path) => {
-      const hasLSpecifier = path.node.specifiers.some((specifier) => {
+    visitImportDeclaration: path => {
+      const hasLSpecifier = path.node.specifiers.some(specifier => {
         if (specifier.type === "ImportSpecifier") {
           return specifier.imported.name === "l";
         }
@@ -37,23 +37,17 @@ const transform = ({ ast, builder, options }) => {
       return false;
     },
     visitCallExpression(path) {
-      if (
-        path.node.callee.name === "useTranslation" &&
-        path.node.arguments.length !== 0
-      ) {
+      if (path.node.callee.name === "useTranslation" && path.node.arguments.length !== 0) {
         namespace = path.node.arguments[0].value;
         path.node.arguments = [];
       }
 
       if (path.node.callee.name === "t") {
-        path.node.arguments = path.node.arguments.map((argument) => {
+        path.node.arguments = path.node.arguments.map(argument => {
           if (argument.type === "StringLiteral") {
             if (namespace) {
               argument = builder.memberExpression(
-                builder.memberExpression(
-                  builder.identifier("l"),
-                  builder.identifier(namespace)
-                ),
+                builder.memberExpression(builder.identifier("l"), builder.identifier(namespace)),
                 builder.identifier(argument.value.replace(":", "."))
               );
             } else {
