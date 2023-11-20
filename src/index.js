@@ -11,6 +11,7 @@ import { dryRun, filePaths, transformToRun, options, verbose } from "./cli.js";
 import { dryRunOutput } from "./dryRunOutput.js";
 import { verboseOutput } from "./verboseOutput.js";
 import { transformer } from "./transformer.js";
+import { __dirname } from "./dirname.js";
 
 if (!validTransformName(transformToRun)) {
   console.log(
@@ -22,7 +23,7 @@ if (!validTransformName(transformToRun)) {
   process.exit(1);
 }
 
-const transformPath = glob.sync(`./src/transforms/**/${transformToRun}.js`)[0];
+const transformPath = glob.sync(`${__dirname}/transforms/**/${transformToRun}.js`)[0];
 const { transform } = await import(transformPath.replace("./src", "."));
 
 filePaths.forEach(filePath => {
