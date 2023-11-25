@@ -1,35 +1,35 @@
 import { expect, it, describe } from "vitest";
 
-import { transform } from "./flipperRipper";
+import { transform } from "./hookRipper";
 import { transformCode } from "../../../testSetup/transformCode";
 
-describe("flipperRipper", () => {
+describe("hookRipper", () => {
   describe("BlockStatement", () => {
     describe("when flipper variable to remove is part of if statement and has an early return", () => {
       it("unwraps the if statement and removes the default return/condition", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
             const loadingState = "Loading...";
 
-            if (isFlipperEnabled) {
+            if (isFeatureEnabled) {
               return (
-                <div data-testid="flipper-enabled-div">
+                <div data-testid="experiment-enabled-div">
                   {loadingState}
                 </div>
               );
             }
 
-            return <div data-testid="flipper-disabled-div">{loadingState}</div>;
+            return <div data-testid="experiment-disabled-div">{loadingState}</div>;
           };
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(
@@ -37,7 +37,7 @@ describe("flipperRipper", () => {
             const loadingState = "Loading...";
 
             return (
-              <div data-testid="flipper-enabled-div">
+              <div data-testid="experiment-enabled-div">
                 {loadingState}
               </div>
             );
@@ -50,22 +50,22 @@ describe("flipperRipper", () => {
     describe("when flipper variable to remove is part of if statement and has an early inline return", () => {
       it("removes the if statement and removes the default return/condition", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+        import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
             const loadingState = "Loading...";
 
-            if (isFlipperEnabled) return <div>{loadingState}</div>;
+            if (isFeatureEnabled) return <div>{loadingState}</div>;
 
-            return <div data-testid="flipper-disabled-div">{loadingState}</div>;
+            return <div data-testid="experiment-disabled-div">{loadingState}</div>;
           };
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -81,18 +81,18 @@ describe("flipperRipper", () => {
     describe("when flipper variable to remove is part of if statement but doesn't have an early return", () => {
       it("unwraps the if statement", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+        import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
             const loadingState = "Loading...";
 
-            if (isFlipperEnabled) {
-              console.log("flipper is enabled");
+            if (isFeatureEnabled) {
+              console.log("experiment is enabled");
             }
 
             return (
-              <div data-testid="flipper-disabled-div">
+              <div data-testid="experiment-disabled-div">
                 {loadingState}
               </div>
             );
@@ -102,17 +102,17 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(
           `const Component = () => {
             const loadingState = "Loading...";
 
-            console.log("flipper is enabled");
+            console.log("experiment is enabled");
 
             return (
-              <div data-testid="flipper-disabled-div">
+              <div data-testid="experiment-disabled-div">
                 {loadingState}
               </div>
             );
@@ -124,16 +124,16 @@ describe("flipperRipper", () => {
     describe("when flipper variable to remove is part of an inline if statement as a single UnaryExpression", () => {
       it("removes the if statement", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
             const loadingState = "Loading...";
 
-            if (!isFlipperEnabled) return null;
+            if (!isFeatureEnabled) return null;
 
             return (
-              <div data-testid="flipper-disabled-div">
+              <div data-testid="experiment-disabled-div">
                 {loadingState}
               </div>
             );
@@ -143,7 +143,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(
@@ -151,7 +151,7 @@ describe("flipperRipper", () => {
             const loadingState = "Loading...";
 
             return (
-              <div data-testid="flipper-disabled-div">
+              <div data-testid="experiment-disabled-div">
                 {loadingState}
               </div>
             );
@@ -164,18 +164,18 @@ describe("flipperRipper", () => {
     describe("when flipper variable to remove is part of if statement with a block as a single UnaryExpression", () => {
       it("removes the if statement", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
             const loadingState = "Loading...";
 
-            if (!isFlipperEnabled) {
+            if (!isFeatureEnabled) {
               return null
             }
 
             return (
-              <div data-testid="flipper-disabled-div">
+              <div data-testid="experiment-disabled-div">
                 {loadingState}
               </div>
             );
@@ -185,7 +185,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(
@@ -193,7 +193,7 @@ describe("flipperRipper", () => {
             const loadingState = "Loading...";
 
             return (
-              <div data-testid="flipper-disabled-div">
+              <div data-testid="experiment-disabled-div">
                 {loadingState}
               </div>
             );
@@ -205,13 +205,13 @@ describe("flipperRipper", () => {
     describe("when flipper variable to remove is part of if statement as an || UnaryExpression on the right side", () => {
       it("removes the flipper unary condition", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
-            if (isAdminImpersonatingOnProd || !isFlipperEnabled) return null;
+            if (isAdminImpersonatingOnProd || !isFeatureEnabled) return null;
 
             return (
               <>
@@ -225,7 +225,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(
@@ -248,13 +248,13 @@ describe("flipperRipper", () => {
     describe("when flipper variable to remove is part of if statement as an || UnaryExpression on the left side", () => {
       it("removes the flipper unary condition", async () => {
         const code = `
-          import { useFlippers } from "@shared/hooks";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
-            if (!isFlipperEnabled || isAdminImpersonatingOnProd) return null;
+            if (!isFeatureEnabled || isAdminImpersonatingOnProd) return null;
 
             return (
               <>
@@ -268,7 +268,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -292,48 +292,15 @@ describe("flipperRipper", () => {
     describe("when the flipper to remove is the only one in useFlippers", () => {
       it("removes the useFlippers call entirely", async () => {
         expect.assertions(1);
-        const code = `const [isFlipperEnabled] = useFlippers("flipper_name");`;
+        const code = `const isFeatureEnabled = useSomeFeatureIsEnabled();`;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier("");
-      });
-    });
-
-    describe("when the flipper to remove is NOT the only one in useFlippers", () => {
-      it("removes flipper variable and argument from useFlippers", async () => {
-        const code = `const [isFlipperEnabled, isAnotherFlipperEnabled] = useFlippers("flipper_name", "another_flipper_name")`;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(
-          `const [isAnotherFlipperEnabled] = useFlippers("another_flipper_name")`
-        );
-      });
-    });
-
-    describe("when the flipper to remove is NOT in useFlippers", () => {
-      it("does nothing", async () => {
-        const code = `
-          import { useFlippers } from "@shared/utils";
-          const [isFlipperEnabled, isAnotherFlipperEnabled] = useFlippers("flipper_name", "another_flipper_name")
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["some_flipper_that_doesn't exist"],
-        });
-
-        await expect(result).assertWithPrettier(code);
       });
     });
   });
@@ -342,15 +309,15 @@ describe("flipperRipper", () => {
     describe("when flipper is part of a ternary statement", () => {
       it("removes the flipper check", async () => {
         const code = `
-          import { useFlippers } from "@shared/utils";
-          const [isFlipperEnabled] = useFlippers("flipper_name");
-          const productName = isFlipperEnabled ? "foo" : "bar";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+          const productName = isFeatureEnabled ? "foo" : "bar";
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`const productName = "foo";`);
@@ -360,15 +327,15 @@ describe("flipperRipper", () => {
     describe("when flipper is part of a ternary statement as a UnaryExpression", () => {
       it("removes the flipper check", async () => {
         const code = `
-          import { useFlippers } from "@shared/utils";
-          const [isFlipperEnabled] = useFlippers("flipper_name");
-          const productName = !isFlipperEnabled ? "foo" : "bar";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+          const productName = !isFeatureEnabled ? "foo" : "bar";
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`const productName = "bar";`);
@@ -377,27 +344,11 @@ describe("flipperRipper", () => {
   });
 
   describe("ImportDeclaration", () => {
-    describe("when the flipper to remove is NOT the only one in useFlippers", () => {
-      it("removes flipper variable and argument from useFlippers", async () => {
-        const code = `const [isFlipperEnabled, isAnotherFlipperEnabled] = useFlippers("flipper_name", "another_flipper_name")`;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(
-          `const [isAnotherFlipperEnabled] = useFlippers("another_flipper_name")`
-        );
-      });
-    });
-
     describe("when the flipper to remove is NOT in useFlippers", () => {
       it("does nothing", async () => {
         const code = `
-          import { useFlippers } from "@shared/utils";
-          const [isFlipperEnabled, isAnotherFlipperEnabled] = useFlippers("flipper_name", "another_flipper_name")
+          import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
         `;
 
         const result = await transformCode({
@@ -411,140 +362,15 @@ describe("flipperRipper", () => {
     });
   });
 
-  describe("JSXAttribute", () => {
-    describe("when flippers attribute contains only the flipper to remove", () => {
-      it("removes the entire FlippersProvider", async () => {
-        const code = `
-          import { FlippersProvider } from "@shared/context";
-
-          <FlippersProvider flippers={["flipper_name"]}>
-            <div />
-          </FlippersProvider>
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(`<div />`);
-      });
-    });
-
-    describe("when flippers attribute contains more than just the flipper to remove", () => {
-      it("removes just the specified flipper", async () => {
-        const code = `
-          import { FlippersProvider } from "@shared/context";
-
-          <FlippersProvider flippers={["flipper_name", "foo_bar_flipper"]}>
-            <div />
-          </FlippersProvider>
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(`
-          import { FlippersProvider } from "@shared/context";
-
-          <FlippersProvider flippers={["foo_bar_flipper"]}>
-            <div />
-          </FlippersProvider>
-        `);
-      });
-    });
-
-    describe("when FlippersProvider contains more than one child", () => {
-      it("removes just the specified flipper", async () => {
-        const code = `
-          import { FlippersProvider } from "@shared/context";
-
-          <FlippersProvider flippers={["flipper_name"]}>
-            <div />
-            <div />
-          </FlippersProvider>
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(`<><div /><div /></>`);
-      });
-    });
-
-    describe("when flippers attribute is passed a variable", () => {
-      it("does nothing", async () => {
-        const code = `
-          import { FlippersProvider } from "@shared/context";
-
-          <FlippersProvider flippers={flippers}>
-            <div />
-          </FlippersProvider>
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(code);
-      });
-    });
-
-    describe("when multiple FlippersProvider exist", () => {
-      it("cleans up both of them", async () => {
-        const code = `
-          import { FlippersProvider } from "@shared/context";
-
-          const ComponentOne = () => {
-            return <FlippersProvider flippers={["flipper_name"]}>
-              <div />
-            </FlippersProvider>;
-          }
-
-          const ComponentTwo = () => {
-            return <FlippersProvider flippers={["flipper_name"]}>
-              <div />
-            </FlippersProvider>
-          }
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(`
-          const ComponentOne = () => {
-            return <div />;
-          }
-          
-          const ComponentTwo = () => {
-            return <div />;
-          }
-        `);
-      });
-    });
-  });
-
   describe("JSXExpressionContainer", () => {
     describe("when the expression contains a simple unary flipper expression", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             return <Accordion
-              css={!isFlipperEnabled && styles.accordion}
+              css={!isFeatureEnabled && styles.accordion}
               coreTriggerContent={
                 <Typography type="body" isSecondaryWeight>
                   {patientTermCapitalizedPlural}
@@ -557,7 +383,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -580,10 +406,10 @@ describe("flipperRipper", () => {
       it("removes the flipper conditional", async () => {
         const code = `
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             return <Accordion
-              css={isFlipperEnabled && styles.accordion}
+              css={isFeatureEnabled && styles.accordion}
               coreTriggerContent={
                 <Typography type="body" isSecondaryWeight>
                   {patientTermCapitalizedPlural}
@@ -596,7 +422,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -622,11 +448,11 @@ describe("flipperRipper", () => {
       it("removes the flipper condition and leaves the component to render", async () => {
         const code = `
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             return (
               <div>
-                {isFlipperEnabled && <PageFooter />}
+                {isFeatureEnabled && <PageFooter />}
               </div>
             );
           };
@@ -635,7 +461,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -654,10 +480,10 @@ describe("flipperRipper", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             return <div>
-              {!isFlipperEnabled && <PageFooter />}
+              {!isFeatureEnabled && <PageFooter />}
             </div>;
           };
         `;
@@ -665,7 +491,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -680,16 +506,16 @@ describe("flipperRipper", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
-            return <>{isFlipperEnabled && <PageFooter />}</>;
+            return <>{isFeatureEnabled && <PageFooter />}</>;
           };
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -704,10 +530,10 @@ describe("flipperRipper", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
-            const [isFlipperEnabled] = useFlippers("flipper_name");
+            const isFeatureEnabled = useSomeFeatureIsEnabled();
 
             return <>
-              {!isFlipperEnabled && <PageFooter />}
+              {!isFeatureEnabled && <PageFooter />}
             </>;
           };
         `;
@@ -715,7 +541,7 @@ describe("flipperRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`
@@ -729,15 +555,15 @@ describe("flipperRipper", () => {
     describe("when a LogicalExpression containing a flipper check on the right side", () => {
       it("removes the flipper check", async () => {
         const code = `
-          import { useFlippers } from "@shared/utils";
-          const [isFlipperEnabled] = useFlippers("flipper_name");
-          const productName = isSomeOtherFlag && isFlipperEnabled ? "foo" : "bar";
+          import { useSomeFeatureIsEnabled } from "@shared/hooks";
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+          const productName = isSomeOtherFlag && isFeatureEnabled ? "foo" : "bar";
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(
@@ -751,16 +577,16 @@ describe("flipperRipper", () => {
     describe("whenever flipperVariable as a UnaryExpression is used for a query skip", () => {
       it("removes the skip property", async () => {
         const code = `
-          const [isFlipperEnabled] = useFlippers("flipper_name");
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
           const { data } = useSomeQuery({
-            skip: !isFlipperEnabled,
+            skip: !isFeatureEnabled,
           });
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier(`const { data } = useSomeQuery({});`);
@@ -770,69 +596,19 @@ describe("flipperRipper", () => {
     describe("whenever flipperVariable is used for a query skip", () => {
       it("removes the skip property", async () => {
         const code = `
-          const [isFlipperEnabled] = useFlippers("flipper_name");
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
           const { data } = useSomeQuery({
-            skip: isFlipperEnabled,
+            skip: isFeatureEnabled,
           });
         `;
 
         const result = await transformCode({
           code,
           transform,
-          options: ["flipper_name"],
+          options: ["useSomeFeatureIsEnabled"],
         });
 
         await expect(result).assertWithPrettier("");
-      });
-    });
-
-    describe("whenever flipperVariable is used as a route flipper check", () => {
-      it("removes the flipper property", async () => {
-        const code = `
-          const routes = [{
-            path: "/some/path",
-            key: "path_key",
-            element: <LazyPage />,
-            flipper: "flipper_name",
-          }];
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(`
-          const routes = [{
-            path: "/some/path",
-            key: "path_key",
-            element: <LazyPage />
-          }];
-        `);
-      });
-    });
-  });
-
-  describe("TSUnionType", () => {
-    describe("when the union contains the flipper to remove", () => {
-      it("removes that flipper from the union", async () => {
-        const code = `
-          export type BaseFlipper =
-            | "flipper_name"
-            | "foo_flipper"
-            | "bar_flipper";
-        `;
-
-        const result = await transformCode({
-          code,
-          transform,
-          options: ["flipper_name"],
-        });
-
-        await expect(result).assertWithPrettier(
-          `export type BaseFlipper = "foo_flipper" | "bar_flipper";`
-        );
       });
     });
   });
