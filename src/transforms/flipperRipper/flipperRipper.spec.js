@@ -286,6 +286,84 @@ describe("flipperRipper", () => {
         `);
       });
     });
+
+    describe("when flipper to remove is part of if statement as a && UnaryExpression on the right side", () => {
+      it("Removes the entire condition and block", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition && !isFlipperEnabled) {
+              console.log("do something when feature is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+
+            if (isFlipperEnabled && !fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const handleOnAddCompleted = () => {
+            if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+    
+            if (!fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `);
+      });
+    });
+
+    describe("when flipper variable to remove is part of if statement as a && on the right side", () => {
+      it("Removes the flipper checks", async () => {
+        const code = `
+        const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition && isFlipperEnabled) {
+              console.log("do something when flipper is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when flipper is enabled");
+            }
+
+            if (isFlipperEnabled && !fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition) {
+              console.log("do something when flipper is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when flipper is enabled");
+            }
+
+            if (!fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `);
+      });
+    });
   });
 
   describe("CallExpression", () => {
@@ -334,6 +412,38 @@ describe("flipperRipper", () => {
         });
 
         await expect(result).assertWithPrettier(code);
+      });
+    });
+
+    describe("when the flipper variable to remove is passed into a CallExpression", () => {
+      it("replaces the parameter with the equivalent boolean value (true)", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+          someFunctionCall(isFlipperEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier("someFunctionCall(true);");
+      });
+
+      it("replaces the parameter with the equivalent boolean value (false)", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+          someFunctionCall(!isFlipperEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier("someFunctionCall(false);");
       });
     });
   });
@@ -412,6 +522,54 @@ describe("flipperRipper", () => {
   });
 
   describe("JSXAttribute", () => {
+    describe("when the attribute is the flipper variable UnaryExpression", () => {
+      it("removes the JSXAttribute", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          return (
+            <AlertBar fixedButton={!isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar>Some text</AlertBar>;
+        `);
+      });
+    });
+
+    describe("when the attribute is the flipper variable only", () => {
+      it("removes the JSXExpressionContainer but keeps the prop enabled", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          return (
+            <AlertBar fixedButton={isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar fixedButton>Some text</AlertBar>;
+        `);
+      });
+    });
+
     describe("when flippers attribute contains only the flipper to remove", () => {
       it("removes the entire FlippersProvider", async () => {
         const code = `
@@ -531,6 +689,54 @@ describe("flipperRipper", () => {
           const ComponentTwo = () => {
             return <div />;
           }
+        `);
+      });
+    });
+
+    describe("when the attribute is a flipper variable UnaryExpression", () => {
+      it("removes the JSXAttribute", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          return (
+            <AlertBar fixedButton={!isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar>Some text</AlertBar>;
+        `);
+      });
+    });
+
+    describe("when the attribute is a flipper variable only", () => {
+      it("removes the JSXExpressionContainer but keeps the prop enabled", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          return (
+            <AlertBar fixedButton={isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar fixedButton>Some text</AlertBar>;
         `);
       });
     });
@@ -743,6 +949,51 @@ describe("flipperRipper", () => {
         await expect(result).assertWithPrettier(
           `const productName = isSomeOtherFlag ? "foo" : "bar";`
         );
+      });
+    });
+
+    describe("when LogicalExpression as a UnaryExprssion is inside an ArrayExpression", () => {
+      it("removes the LogicalExpression", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          const someStyles = [
+            !isFlipperEnabled && styles.box,
+            isFlipperEnabled && styles.foo,
+            styles.bar,
+          ];
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`const someStyles = [styles.foo, styles.bar];`);
+      });
+    });
+
+    describe("when LogicalExpression contains a nested LogicalExpression with the left side being a hook variable UnaryExpression", () => {
+      it("removes the LogicalExpression", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          const isSomeProperty =
+            (platformEnabled && featureType === "bla") ||
+            (!isFlipperEnabled && platformEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const isSomeProperty =
+            (platformEnabled && featureType === "bla");
+        `);
       });
     });
   });

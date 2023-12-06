@@ -71,6 +71,8 @@ const removeUseFlippers = (path, callExpression, declaration) => {
  * @returns {void}
  */
 const removeParentJSXAttribute = path => {
+  if (!path.parentPath) return;
+
   if (
     isJSXExpressionContainer(path.parentPath.node) &&
     (isJSXElement(path.parentPath.parentPath.node) ||
@@ -112,6 +114,15 @@ const transformLogicalExpression = node => {
   } else if (isIdentifierWithName(node.left, flipperVariableToRemove)) {
     // If logicalExpression and left is flipperVariable to remove, we just return right
     return node.right;
+  } else if (isUnaryExpressionWithName(node.left, flipperVariableToRemove)) {
+    if (node.operator === "&&") {
+      // !isFlipperEnabled && somethingElse
+      // remove entire logicalExpression
+      return null;
+    } else {
+      // !isFlipperEnabled || somethingElse
+      return node.right;
+    }
   }
 
   if (isLogicalExpression(node.right)) {
@@ -119,6 +130,15 @@ const transformLogicalExpression = node => {
   } else if (isIdentifierWithName(node.right, flipperVariableToRemove)) {
     // If logicalExpression and right is flipperVariable to remove, we just return left
     return node.left;
+  } else if (isUnaryExpressionWithName(node.right, flipperVariableToRemove)) {
+    if (node.operator === "&&") {
+      // somethingElse && !isFlipperEnabled
+      // remove entire logicalExpression
+      return null;
+    } else {
+      // somethingElse || !isFlipperEnabled
+      return node.left;
+    }
   }
 
   return node;
@@ -144,10 +164,51 @@ const transform = ({ builder, options }) => {
         parentNode = path.node;
       }
     },
+    visitArrayExpression(path) {
+      // const someStyles = [
+      //   !isFlipperEnabled && styles.box,
+      //   isFlipperEnabled && styles.foo,
+      //   styles.bar,
+      // ];
+
+      path.node.elements = path.node.elements.reduce((acc, element) => {
+        if (isLogicalExpression(element)) {
+          const result = transformLogicalExpression(element);
+
+          if (result) {
+            acc.push(result);
+          }
+        } else {
+          acc.push(element);
+        }
+
+        return acc;
+      }, []);
+    },
+    visitCallExpression(path) {
+      path.node.arguments = path.node.arguments.map(argument => {
+        if (isUnaryExpressionWithName(argument, flipperVariableToRemove)) {
+          return builder.booleanLiteral(false);
+        } else if (isIdentifierWithName(argument, flipperVariableToRemove)) {
+          return builder.booleanLiteral(true);
+        }
+
+        return argument;
+      });
+    },
     visitConditionalExpression(path) {
       // const something = isFlipperEnabled ? "foo" : "bar";
       // const something = !isFlipperEnabled ? "foo" : "bar";
       collapseConditionalExpressionIfMatchingIdentifier(path, flipperVariableToRemove);
+    },
+    visitJSXAttribute(path) {
+      if (isIdentifierWithName(path.node.value?.expression, flipperVariableToRemove)) {
+        // <Component someProps={isFlipperEnabled} />
+        path.node.value = null;
+      } else if (isUnaryExpressionWithName(path.node.value?.expression, flipperVariableToRemove)) {
+        // <Component someProps={!isFlipperEnabled} />
+        path.prune();
+      }
     },
     visitJSXElement(path) {
       // For code like the following:
@@ -233,9 +294,27 @@ const transform = ({ builder, options }) => {
             path.node.consequent,
           ]);
         }
-      } else if (isUnaryExpressionWithName(path.node, flipperVariableToRemove)) {
+      } else if (isUnaryExpressionWithName(path.node?.test, flipperVariableToRemove)) {
         // if (!isFlipperEnabled) return;
         path.prune();
+      } else if (
+        isLogicalExpression(path.node.test) &&
+        path.node.test.operator === "&&" &&
+        isUnaryExpressionWithName(path.node.test.right, flipperVariableToRemove)
+      ) {
+        if (path.node.alternate) {
+          // if (someOtherCondition && !isFlipperEnabled) {
+          //   console.log("do something");
+          // } else if (!someOtherCondition) {
+          //   console.log("do something else");
+          // }
+          path.replace(path.node.alternate);
+        } else {
+          // if (someOtherCondition && !isFlipperEnabled) {
+          //   console.log("do something");
+          // }
+          path.prune();
+        }
       }
     },
     visitImportDeclaration(path) {
@@ -252,7 +331,14 @@ const transform = ({ builder, options }) => {
     visitLogicalExpression(path) {
       if (isLogicalExpression(path.node.left)) {
         // (isFlipperEnabled && isFoo) || (isFlipperEnabled && isBar)
-        path.node.left = transformLogicalExpression(path.node.left);
+        const result = transformLogicalExpression(path.node.left);
+
+        // If result is non truthy, we have removed the left side of the expression
+        if (result) {
+          path.node.left = result;
+        } else {
+          path.replace(path.node.right);
+        }
       } else if (isIdentifierWithName(path.node.left, flipperVariableToRemove)) {
         // case where we are doing a simple `isFlipperEnabled && styles.foo`
         path.replace(transformLogicalExpression(path.node));
@@ -262,7 +348,14 @@ const transform = ({ builder, options }) => {
 
       if (isLogicalExpression(path.node.right)) {
         // (isFoo && isFlipperEnabled) || (isBar && isFlipperEnabled)
-        path.node.right = transformLogicalExpression(path.node.right);
+        const result = transformLogicalExpression(path.node.right);
+
+        // If result is non truthy, we have removed the left side of the expression
+        if (result) {
+          path.node.right = result;
+        } else {
+          path.replace(path.node.left);
+        }
       } else if (isIdentifierWithName(path.node.right, flipperVariableToRemove)) {
         // case where we are doing a simple `isSomethingElse && isFlipperEnabled`
         path.replace(transformLogicalExpression(path.node));
@@ -273,9 +366,9 @@ const transform = ({ builder, options }) => {
       // !isFlipperEnabled && styles.someStyles
       if (
         isUnaryExpression(path.node.left) &&
-        isIdentifierWithName(path.node.left.argument, flipperVariableToRemove) &&
-        isJSXExpressionContainer(path.parentPath?.node)
+        isIdentifierWithName(path.node.left.argument, flipperVariableToRemove)
       ) {
+        // css={!isEnabled && styles.someStyles}
         removeParentJSXAttribute(path);
       }
 

@@ -5,7 +5,7 @@ import { transformCode } from "../../../testSetup/transformCode";
 
 describe("hookRipper", () => {
   describe("BlockStatement", () => {
-    describe("when flipper variable to remove is part of if statement and has an early return", () => {
+    describe("when hook variable to remove is part of if statement and has an early return", () => {
       it("unwraps the if statement and removes the default return/condition", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
@@ -47,7 +47,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper variable to remove is part of if statement and has an early inline return", () => {
+    describe("when hook variable to remove is part of if statelolment and has an early inline return", () => {
       it("removes the if statement and removes the default return/condition", async () => {
         const code = `
         import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
@@ -78,7 +78,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper variable to remove is part of if statement but doesn't have an early return", () => {
+    describe("when hook variable to remove is part of if statement but doesn't have an early return", () => {
       it("unwraps the if statement", async () => {
         const code = `
         import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
@@ -121,7 +121,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper variable to remove is part of an inline if statement as a single UnaryExpression", () => {
+    describe("when hook variable to remove is part of an inline if statement as a single UnaryExpression", () => {
       it("removes the if statement", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
@@ -161,7 +161,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper variable to remove is part of if statement with a block as a single UnaryExpression", () => {
+    describe("when hook variable to remove is part of if statement with a block as a single UnaryExpression", () => {
       it("removes the if statement", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
@@ -202,8 +202,8 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper variable to remove is part of if statement as an || UnaryExpression on the right side", () => {
-      it("removes the flipper unary condition", async () => {
+    describe("when hook variable to remove is part of if statement as an || UnaryExpression on the right side", () => {
+      it("removes the hook variable unary condition", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
@@ -245,8 +245,8 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper variable to remove is part of if statement as an || UnaryExpression on the left side", () => {
-      it("removes the flipper unary condition", async () => {
+    describe("when hook variable to remove is part of if statement as an || UnaryExpression on the left side", () => {
+      it("removes the hook unary condition", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
 
@@ -286,12 +286,89 @@ describe("hookRipper", () => {
         `);
       });
     });
+
+    describe("when hook variable to remove is part of if statement as a && UnaryExpression on the right side", () => {
+      it("Removes the entire condition and block", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition && !isFeatureEnabled) {
+              console.log("do something when feature is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+
+            if (isFeatureEnabled && !fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const handleOnAddCompleted = () => {
+            if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+
+            if (!fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `);
+      });
+    });
+
+    describe("when hook variable to remove is part of if statement as a && on the right side", () => {
+      it("Removes the feature checks", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition && isFeatureEnabled) {
+              console.log("do something when feature is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+
+            if (isFeatureEnabled && !fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition) {
+              console.log("do something when feature is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+
+            if (!fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `);
+      });
+    });
   });
 
   describe("CallExpression", () => {
-    describe("when the flipper to remove is the only one in useFlippers", () => {
-      it("removes the useFlippers call entirely", async () => {
-        expect.assertions(1);
+    describe("when the hook to remove is the only one", () => {
+      it("removes the usehooks call entirely", async () => {
         const code = `const isFeatureEnabled = useSomeFeatureIsEnabled();`;
 
         const result = await transformCode({
@@ -303,11 +380,43 @@ describe("hookRipper", () => {
         await expect(result).assertWithPrettier("");
       });
     });
+
+    describe("when the hook variable to remove is passed into a CallExpression", () => {
+      it("replaces the parameter with the equivalent boolean value (true)", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+          someFunctionCall(isFeatureEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier("someFunctionCall(true);");
+      });
+
+      it("replaces the parameter with the equivalent boolean value (false)", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+          someFunctionCall(!isFeatureEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier("someFunctionCall(false);");
+      });
+    });
   });
 
   describe("ConditionalExpression", () => {
-    describe("when flipper is part of a ternary statement", () => {
-      it("removes the flipper check", async () => {
+    describe("when hook is part of a ternary statement", () => {
+      it("removes the hook check", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
           const isFeatureEnabled = useSomeFeatureIsEnabled();
@@ -324,8 +433,8 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when flipper is part of a ternary statement as a UnaryExpression", () => {
-      it("removes the flipper check", async () => {
+    describe("when hook is part of a ternary statement as a UnaryExpression", () => {
+      it("removes the hook check", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
           const isFeatureEnabled = useSomeFeatureIsEnabled();
@@ -344,7 +453,7 @@ describe("hookRipper", () => {
   });
 
   describe("ImportDeclaration", () => {
-    describe("when the flipper to remove is NOT in useFlippers", () => {
+    describe("when the hook to remove is NOT in usehooks", () => {
       it("does nothing", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks/useSomeFeatureIsEnabled";
@@ -354,7 +463,7 @@ describe("hookRipper", () => {
         const result = await transformCode({
           code,
           transform,
-          options: ["some_flipper_that_doesn't exist"],
+          options: ["some_hook_that_doesn't exist"],
         });
 
         await expect(result).assertWithPrettier(code);
@@ -362,8 +471,58 @@ describe("hookRipper", () => {
     });
   });
 
+  describe("JSXAttribute", () => {
+    describe("when the attribute is the hook variable UnaryExpression", () => {
+      it("removes the JSXAttribute", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+
+          return (
+            <AlertBar fixedButton={!isFeatureEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar>Some text</AlertBar>;
+        `);
+      });
+    });
+
+    describe("when the attribute is the hook variable only", () => {
+      it("removes the JSXExpressionContainer but keeps the prop enabled", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+
+          return (
+            <AlertBar fixedButton={isFeatureEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar fixedButton>Some text</AlertBar>;
+        `);
+      });
+    });
+  });
+
   describe("JSXExpressionContainer", () => {
-    describe("when the expression contains a simple unary flipper expression", () => {
+    describe("when the expression contains a simple unary hook expression", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
@@ -402,8 +561,8 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when the expression contains a simple flipper expression", () => {
-      it("removes the flipper conditional", async () => {
+    describe("when the expression contains a simple hook expression", () => {
+      it("removes the hook conditional", async () => {
         const code = `
           const Component = () => {
             const isFeatureEnabled = useSomeFeatureIsEnabled();
@@ -444,8 +603,8 @@ describe("hookRipper", () => {
   });
 
   describe("LogicalExpression", () => {
-    describe("when a LogicalExpression containing a flipper check is rendered inside a component", () => {
-      it("removes the flipper condition and leaves the component to render", async () => {
+    describe("when a LogicalExpression containing a hook check is rendered inside a component", () => {
+      it("removes the hook condition and leaves the component to render", async () => {
         const code = `
           const Component = () => {
             const isFeatureEnabled = useSomeFeatureIsEnabled();
@@ -476,7 +635,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when a LogicalExpression containing a Unary flipper check is rendered inside a component", () => {
+    describe("when a LogicalExpression containing a Unary hook check is rendered inside a component", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
@@ -502,7 +661,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when a LogicalExpression containing a flipper check is rendered inside a fragment", () => {
+    describe("when a LogicalExpression containing a hook check is rendered inside a fragment", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
@@ -526,7 +685,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when a LogicalExpression containing a Unary flipper check is rendered inside a fragment", () => {
+    describe("when a LogicalExpression containing a Unary hook check is rendered inside a fragment", () => {
       it("removes the entire JSXExpressionContainer", async () => {
         const code = `
           const Component = () => {
@@ -552,8 +711,8 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("when a LogicalExpression containing a flipper check on the right side", () => {
-      it("removes the flipper check", async () => {
+    describe("when a LogicalExpression containing a hook check on the right side", () => {
+      it("removes the hook check", async () => {
         const code = `
           import { useSomeFeatureIsEnabled } from "@shared/hooks";
           const isFeatureEnabled = useSomeFeatureIsEnabled();
@@ -571,10 +730,55 @@ describe("hookRipper", () => {
         );
       });
     });
+
+    describe("when LogicalExpression as a UnaryExprssion is inside an ArrayExpression", () => {
+      it("removes the LogicalExpression", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+
+          const someStyles = [
+            !isFeatureEnabled && styles.box,
+            isFeatureEnabled && styles.foo,
+            styles.bar,
+          ];
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier(`const someStyles = [styles.foo, styles.bar];`);
+      });
+    });
+
+    describe("when LogicalExpression contains a nested LogicalExpression with the left side being a hook variable UnaryExpression", () => {
+      it("does something", async () => {
+        const code = `
+          const isFeatureEnabled = useSomeFeatureIsEnabled();
+
+          const isSomeProperty =
+            (platformEnabled && featureType === "bla") ||
+            (!isFeatureEnabled && platformEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["useSomeFeatureIsEnabled"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const isSomeProperty =
+            (platformEnabled && featureType === "bla");
+        `);
+      });
+    });
   });
 
   describe("ObjectProperty", () => {
-    describe("whenever flipperVariable as a UnaryExpression is used for a query skip", () => {
+    describe("whenever hookVariable as a UnaryExpression is used for a query skip", () => {
       it("removes the skip property", async () => {
         const code = `
           const isFeatureEnabled = useSomeFeatureIsEnabled();
@@ -593,7 +797,7 @@ describe("hookRipper", () => {
       });
     });
 
-    describe("whenever flipperVariable is used for a query skip", () => {
+    describe("whenever hookVariable is used for a query skip", () => {
       it("removes the skip property", async () => {
         const code = `
           const isFeatureEnabled = useSomeFeatureIsEnabled();
