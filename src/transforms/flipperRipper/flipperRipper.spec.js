@@ -32,7 +32,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const Component = () => {
             const loadingState = "Loading...";
 
@@ -68,7 +68,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             const loadingState = "Loading...";
 
@@ -105,7 +105,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const Component = () => {
             const loadingState = "Loading...";
 
@@ -146,7 +146,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const Component = () => {
             const loadingState = "Loading...";
 
@@ -188,7 +188,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const Component = () => {
             const loadingState = "Loading...";
 
@@ -228,7 +228,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const Component = () => {
             const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
             if (isAdminImpersonatingOnProd) return null;
@@ -271,7 +271,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             const isAdminImpersonatingOnProd = isAdminImpersonating && isProduction();
             if (isAdminImpersonatingOnProd) return null;
@@ -282,6 +282,84 @@ describe("flipperRipper", () => {
                 <ComponentTwo/>
               </>
             );
+          };
+        `);
+      });
+    });
+
+    describe("when flipper to remove is part of if statement as a && UnaryExpression on the right side", () => {
+      it("Removes the entire condition and block", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition && !isFlipperEnabled) {
+              console.log("do something when feature is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+
+            if (isFlipperEnabled && !fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const handleOnAddCompleted = () => {
+            if (!someOtherCondition) {
+              console.log("do something when feature is enabled");
+            }
+    
+            if (!fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `);
+      });
+    });
+
+    describe("when flipper variable to remove is part of if statement as a && on the right side", () => {
+      it("Removes the flipper checks", async () => {
+        const code = `
+        const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition && isFlipperEnabled) {
+              console.log("do something when flipper is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when flipper is enabled");
+            }
+
+            if (isFlipperEnabled && !fooBarCondition) {
+              console.log("bla");
+            }
+          };
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const handleOnAddCompleted = () => {
+            if (someOtherCondition) {
+              console.log("do something when flipper is not enabled");
+            } else if (!someOtherCondition) {
+              console.log("do something when flipper is enabled");
+            }
+
+            if (!fooBarCondition) {
+              console.log("bla");
+            }
           };
         `);
       });
@@ -300,7 +378,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier("");
+        await expect(result).assertWithPrettier("");
       });
     });
 
@@ -314,7 +392,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const [isAnotherFlipperEnabled] = useFlippers("another_flipper_name")`
         );
       });
@@ -333,7 +411,39 @@ describe("flipperRipper", () => {
           options: ["some_flipper_that_doesn't exist"],
         });
 
-        expect(result).assertWithPrettier(code);
+        await expect(result).assertWithPrettier(code);
+      });
+    });
+
+    describe("when the flipper variable to remove is passed into a CallExpression", () => {
+      it("replaces the parameter with the equivalent boolean value (true)", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+          someFunctionCall(isFlipperEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier("someFunctionCall(true);");
+      });
+
+      it("replaces the parameter with the equivalent boolean value (false)", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+          someFunctionCall(!isFlipperEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier("someFunctionCall(false);");
       });
     });
   });
@@ -353,7 +463,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`const productName = "foo";`);
+        await expect(result).assertWithPrettier(`const productName = "foo";`);
       });
     });
 
@@ -371,7 +481,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`const productName = "bar";`);
+        await expect(result).assertWithPrettier(`const productName = "bar";`);
       });
     });
   });
@@ -387,7 +497,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `const [isAnotherFlipperEnabled] = useFlippers("another_flipper_name")`
         );
       });
@@ -406,12 +516,60 @@ describe("flipperRipper", () => {
           options: ["some_flipper_that_doesn't exist"],
         });
 
-        expect(result).assertWithPrettier(code);
+        await expect(result).assertWithPrettier(code);
       });
     });
   });
 
   describe("JSXAttribute", () => {
+    describe("when the attribute is the flipper variable UnaryExpression", () => {
+      it("removes the JSXAttribute", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          return (
+            <AlertBar fixedButton={!isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar>Some text</AlertBar>;
+        `);
+      });
+    });
+
+    describe("when the attribute is the flipper variable only", () => {
+      it("removes the JSXExpressionContainer but keeps the prop enabled", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          return (
+            <AlertBar fixedButton={isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar fixedButton>Some text</AlertBar>;
+        `);
+      });
+    });
+
     describe("when flippers attribute contains only the flipper to remove", () => {
       it("removes the entire FlippersProvider", async () => {
         const code = `
@@ -428,7 +586,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`<div />`);
+        await expect(result).assertWithPrettier(`<div />`);
       });
     });
 
@@ -448,7 +606,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           import { FlippersProvider } from "@shared/context";
 
           <FlippersProvider flippers={["foo_bar_flipper"]}>
@@ -475,7 +633,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`<><div /><div /></>`);
+        await expect(result).assertWithPrettier(`<><div /><div /></>`);
       });
     });
 
@@ -495,7 +653,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(code);
+        await expect(result).assertWithPrettier(code);
       });
     });
 
@@ -523,7 +681,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const ComponentOne = () => {
             return <div />;
           }
@@ -531,6 +689,54 @@ describe("flipperRipper", () => {
           const ComponentTwo = () => {
             return <div />;
           }
+        `);
+      });
+    });
+
+    describe("when the attribute is a flipper variable UnaryExpression", () => {
+      it("removes the JSXAttribute", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          return (
+            <AlertBar fixedButton={!isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar>Some text</AlertBar>;
+        `);
+      });
+    });
+
+    describe("when the attribute is a flipper variable only", () => {
+      it("removes the JSXExpressionContainer but keeps the prop enabled", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+
+          return (
+            <AlertBar fixedButton={isFlipperEnabled}>
+              Some text
+            </AlertBar>
+          );
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          return <AlertBar fixedButton>Some text</AlertBar>;
         `);
       });
     });
@@ -560,7 +766,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             return (
               <Accordion
@@ -599,7 +805,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             return (
               <Accordion
@@ -638,7 +844,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             return (
               <div>
@@ -668,7 +874,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             return <div></div>;
           };
@@ -692,7 +898,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             return <>{<PageFooter />}</>;
           };
@@ -718,7 +924,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const Component = () => {
             return <></>;
           };
@@ -740,7 +946,54 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`const productName = isSomeOtherFlag ? "foo" : "bar";`);
+        await expect(result).assertWithPrettier(
+          `const productName = isSomeOtherFlag ? "foo" : "bar";`
+        );
+      });
+    });
+
+    describe("when LogicalExpression as a UnaryExprssion is inside an ArrayExpression", () => {
+      it("removes the LogicalExpression", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          const someStyles = [
+            !isFlipperEnabled && styles.box,
+            isFlipperEnabled && styles.foo,
+            styles.bar,
+          ];
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`const someStyles = [styles.foo, styles.bar];`);
+      });
+    });
+
+    describe("when LogicalExpression contains a nested LogicalExpression with the left side being a hook variable UnaryExpression", () => {
+      it("removes the LogicalExpression", async () => {
+        const code = `
+          const [isFlipperEnabled] = useFlippers("flipper_name");
+    
+          const isSomeProperty =
+            (platformEnabled && featureType === "bla") ||
+            (!isFlipperEnabled && platformEnabled);
+        `;
+
+        const result = await transformCode({
+          code,
+          transform,
+          options: ["flipper_name"],
+        });
+
+        await expect(result).assertWithPrettier(`
+          const isSomeProperty =
+            (platformEnabled && featureType === "bla");
+        `);
       });
     });
   });
@@ -761,7 +1014,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`const { data } = useSomeQuery({});`);
+        await expect(result).assertWithPrettier(`const { data } = useSomeQuery({});`);
       });
     });
 
@@ -780,7 +1033,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier("");
+        await expect(result).assertWithPrettier("");
       });
     });
 
@@ -801,7 +1054,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(`
+        await expect(result).assertWithPrettier(`
           const routes = [{
             path: "/some/path",
             key: "path_key",
@@ -828,7 +1081,7 @@ describe("flipperRipper", () => {
           options: ["flipper_name"],
         });
 
-        expect(result).assertWithPrettier(
+        await expect(result).assertWithPrettier(
           `export type BaseFlipper = "foo_flipper" | "bar_flipper";`
         );
       });

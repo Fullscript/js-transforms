@@ -22,7 +22,7 @@
 const collapseConditionalExpressionIfMatchingIdentifier = (path, name) => {
   if (isIdentifierWithName(path.node.test, name)) {
     path.replace(path.node.consequent);
-  } else if (isUnaryExpressionWithName(path.node, name)) {
+  } else if (isUnaryExpressionWithName(path.node.test, name)) {
     // const something = !isFlipperEnabled ? "foo" : "bar";
     path.replace(path.node.alternate);
   }
@@ -36,6 +36,7 @@ const collapseConditionalExpressionIfMatchingIdentifier = (path, name) => {
  * @returns {boolean}
  */
 const isIdentifierWithName = (node, name) => {
+  if (!node) return false;
   return node.type === "Identifier" && node.name === name;
 };
 
@@ -47,7 +48,8 @@ const isIdentifierWithName = (node, name) => {
  * @returns {boolean}
  */
 const isCallExpressionWithName = (node, name) => {
-  return node?.type === "CallExpression" && node?.callee?.name === name;
+  if (!node) return false;
+  return node.type === "CallExpression" && node.callee.name === name;
 };
 
 /**
@@ -69,7 +71,8 @@ const isElementInArrayPattern = (node, name) => {
  * @returns {boolean}
  */
 const isUnaryExpressionWithName = (node, name) => {
-  return node.test.type === "UnaryExpression" && node.test.argument.name === name;
+  if (!node) return false;
+  return node.type === "UnaryExpression" && node.argument.name === name;
 };
 
 /**
@@ -80,6 +83,7 @@ const isUnaryExpressionWithName = (node, name) => {
  * @returns {boolean}
  */
 const isImportSpecifierWithName = (node, name) => {
+  if (!node) return false;
   return node.type === "ImportSpecifier" && node.imported.name === name;
 };
 
@@ -91,7 +95,18 @@ const isImportSpecifierWithName = (node, name) => {
  * @returns {boolean}
  */
 const isObjectPropertyWithKey = (node, key) => {
+  if (!node) return false;
   return node.type === "ObjectProperty" && node.key.name === key;
+};
+
+/**
+ * Is the specified node a ArrayExpression?
+ *
+ * @param {import("ast-types/gen/kinds").ArrayExpressionKind} node
+ * @returns {boolean}
+ */
+const isArrayExpression = node => {
+  return node?.type === "ArrayExpression";
 };
 
 /**
@@ -101,7 +116,7 @@ const isObjectPropertyWithKey = (node, key) => {
  * @returns {boolean}
  */
 const isJSXAttribute = node => {
-  return node.type === "JSXAttribute";
+  return node?.type === "JSXAttribute";
 };
 
 /**
@@ -111,7 +126,7 @@ const isJSXAttribute = node => {
  * @returns {boolean}
  */
 const isJSXExpressionContainer = node => {
-  return node.type === "JSXExpressionContainer";
+  return node?.type === "JSXExpressionContainer";
 };
 
 /**
@@ -121,7 +136,7 @@ const isJSXExpressionContainer = node => {
  * @returns {boolean}
  */
 const isJSXElement = node => {
-  return node.type === "JSXElement";
+  return node?.type === "JSXElement";
 };
 
 /**
@@ -131,7 +146,7 @@ const isJSXElement = node => {
  * @returns {boolean}
  */
 const isJSXFragment = node => {
-  return node.type === "JSXFragment";
+  return node?.type === "JSXFragment";
 };
 
 /**
@@ -141,7 +156,7 @@ const isJSXFragment = node => {
  * @returns {boolean}
  */
 const isBlockStatement = node => {
-  return node.type === "BlockStatement";
+  return node?.type === "BlockStatement";
 };
 
 /**
@@ -151,7 +166,7 @@ const isBlockStatement = node => {
  * @returns {boolean}
  */
 const isReturnStatement = node => {
-  return node.type === "ReturnStatement";
+  return node?.type === "ReturnStatement";
 };
 
 /**
@@ -161,7 +176,7 @@ const isReturnStatement = node => {
  * @returns {boolean}
  */
 const isLogicalExpression = node => {
-  return node.type === "LogicalExpression";
+  return node?.type === "LogicalExpression";
 };
 
 /**
@@ -171,7 +186,7 @@ const isLogicalExpression = node => {
  * @returns {boolean}
  */
 const isUnaryExpression = node => {
-  return node.type === "UnaryExpression";
+  return node?.type === "UnaryExpression";
 };
 
 /**
@@ -181,7 +196,7 @@ const isUnaryExpression = node => {
  * @returns {boolean}
  */
 const isStringLiteral = node => {
-  return node.type === "StringLiteral";
+  return node?.type === "StringLiteral";
 };
 
 /**
@@ -191,7 +206,7 @@ const isStringLiteral = node => {
  * @returns {boolean}
  */
 const isVariableDeclarator = node => {
-  return node.type === "VariableDeclarator";
+  return node?.type === "VariableDeclarator";
 };
 
 /**
@@ -309,13 +324,20 @@ const removeCallExpressionArgument = (node, argumentToRemove) => {
  * Removes the element matching the passed name in the specified ArrayPattern.
  *
  * @param {import("ast-types/gen/kinds").ArrayPatternKind} node
- * @param {string} elementToRemove
+ * @param {any} elementToRemove
  * @return {void}
  */
 const removeElementFromArrayPattern = (node, elementToRemove) => {
-  node.elements = node.elements.filter(element => {
-    return (element.name || element.value) !== elementToRemove;
-  });
+  if (typeof elementToRemove === "string") {
+    node.elements = node.elements.filter(element => {
+      return (element.name || element.value) !== elementToRemove;
+    });
+  } else {
+    // passing in a node of some time
+    node.elements = node.elements.filter(element => {
+      return element !== elementToRemove;
+    });
+  }
 };
 
 /**
@@ -337,6 +359,7 @@ export {
   isImportSpecifierWithName,
   isObjectPropertyWithKey,
   isUnaryExpressionWithName,
+  isArrayExpression,
   isJSXAttribute,
   isJSXExpressionContainer,
   isJSXElement,
