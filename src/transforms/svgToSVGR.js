@@ -51,6 +51,20 @@ const transform = ({ builder }) => {
 
       return false;
     },
+    visitExportNamedDeclaration(path) {
+      const { node } = path;
+
+      if (node.specifiers && node.specifiers.length > 0) {
+        node.specifiers.forEach(specifier => {
+          if (importReplacements.hasOwnProperty(specifier.exported.name)) {
+            const newImportName = importReplacements[specifier.exported.name];
+            specifier.local = builder.identifier(newImportName);
+          }
+        });
+      }
+
+      return false;
+    },
     visitJSXElement(path) {
       const { node } = path;
 
