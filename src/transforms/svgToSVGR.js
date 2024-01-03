@@ -31,19 +31,19 @@ const transform = ({ builder }) => {
           .replace(".svg", "")
           .split("-")
           .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-          .join("") + "SVGComponent";
+          .join("");
 
         const oldImportName = node.specifiers[0].local.name;
 
         // Remember the replacement
-        importReplacements[oldImportName] = newImportName;
+        importReplacements[oldImportName] = newImportName + "SVGComponent";
 
 
         // Change the import source
         node.source.value = sourceArray.join("/") + "/" + newImportName;
 
         // Change the import default specifier
-        node.specifiers[0].local.name = newImportName;
+        node.specifiers[0].local.name = newImportName + "SVGComponent";
       } else if (source.endsWith(".svg?url")) {
         // If the source ends with '.svg?url', just remove '?url'
         node.source.value = source.replace("?url", "");
