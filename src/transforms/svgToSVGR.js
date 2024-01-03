@@ -56,9 +56,21 @@ const transform = ({ builder }) => {
 
       if (node.specifiers && node.specifiers.length > 0) {
         node.specifiers.forEach(specifier => {
-          if (importReplacements.hasOwnProperty(specifier.exported.name)) {
-            const newImportName = importReplacements[specifier.exported.name];
-            specifier.local = builder.identifier(newImportName);
+          const oldExportName = specifier.exported.name;
+          if (importReplacements.hasOwnProperty(oldExportName)) {
+            const newImportName = importReplacements[oldExportName];
+
+            // Insert const declaration before the export declaration
+            const constDeclaration = builder.variableDeclaration("const", [
+              builder.variableDeclarator(
+                builder.identifier(oldExportName),
+                builder.identifier(newImportName)
+              ),
+            ]);
+            path.insertBefore(constDeclaration);
+
+            // Change the local name to the old export name
+            specifier.local.name = oldExportName;
           }
         });
       }
