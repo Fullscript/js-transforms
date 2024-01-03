@@ -31,7 +31,7 @@ const transform = ({ builder }) => {
           .replace(".svg", "")
           .split("-")
           .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-          .join("");
+          .join("") + "SVGComponent";
 
         const oldImportName = node.specifiers[0].local.name;
 
