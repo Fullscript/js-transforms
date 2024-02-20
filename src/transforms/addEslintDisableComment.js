@@ -27,7 +27,7 @@ const transform = ({ builder }) => {
             ]);
           if (index === 0) {
             newDeclaration.comments = [
-              builder.commentBlock("eslint-disable @fullscript/gql-no-manual-hook-declaration"),
+              builder.commentBlock("eslint-disable @fullscript/gql-no-manual-hook-declaration "),
             ];
             return newDeclaration;
           }
