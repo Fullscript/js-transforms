@@ -22,15 +22,15 @@ const transform = ({ builder }) => {
 
       if (includesHook) {
         const newDeclarations = path.node.specifiers.map((_, index) => {
-          if (index === 0) {
             const newDeclaration = builder.exportNamedDeclaration(path.node.declaration, [
               ...path.node.specifiers,
             ]);
+          if (index === 0) {
             newDeclaration.comments = [
               builder.commentBlock("eslint-disable @fullscript/gql-no-manual-hook-declaration"),
             ];
+            return newDeclaration;
           }
-          return newDecl;
         });
         path.replace.apply(path, newDeclarations);
       }
