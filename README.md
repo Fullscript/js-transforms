@@ -107,6 +107,23 @@ Example:
 yarn transform lTranslation '../hw-admin/app/javascript/patient/**/*.ts*' --options @patient/locales
 ```
 
+#### addEslintDisableComment
+
+To temporarily suppress custom eslint rule to prevent using the manually declared GraphQL hook
+
+Usage:
+
+```sh
+yarn transform addEslintDisableComment '../hw-admin/app/javascript/<namespace>/**/*.ts*' 
+```
+
+Example:
+
+```sh
+yarn transform addEslintDisableComment '../hw-admin/app/javascript/patient/**/*.ts*'
+```
+
+
 ### CLI
 
 The CLI usage is as follows:
@@ -119,3 +136,4 @@ yarn transform <transformName> <filesToTransformAsGlob> --dry-run --options
 - **filesToTransformAsGlob**: A glob pattern **in quotations** identifying files to run the transform against. Ex: '../projectDir/src/\*\*/\*.tsx'
 - **`--dry-run` or `-d` for short**: Output transform result to console rather than writing changes to files. Useful during development.
 - **`--options`**: An array of optional parameters to pass into the specified transform. Some transforms require additional user input, this is how you specify that. See [colorsToTheme](#colorstotheme) for an example.
+
