@@ -12,8 +12,8 @@
  * @returns {import("ast-types").Visitor}
  */
 
+const reactHookPrefix = new RegExp("use\\w+");
 const transform = ({ builder }) => {
-  const reactHookPrefix = new RegExp("use\\w+");
   return {
     visitExportNamedDeclaration(path) {
       const includesHook = path.node.specifiers.some(specifier => {
@@ -21,10 +21,11 @@ const transform = ({ builder }) => {
       });
 
       if (includesHook) {
+        // create exact copy of the export declaration
+        const newDeclaration = builder.exportNamedDeclaration(path.node.declaration, [
+          ...path.node.specifiers,
+        ]);
         const newDeclarations = path.node.specifiers.map((_, index) => {
-            const newDeclaration = builder.exportNamedDeclaration(path.node.declaration, [
-              ...path.node.specifiers,
-            ]);
           if (index === 0) {
             newDeclaration.comments = [
               builder.commentBlock("eslint-disable @fullscript/gql-no-manual-hook-declaration "),
