@@ -120,7 +120,7 @@ yarn transform addEslintDisableComment '../hw-admin/app/javascript/<namespace>/*
 Example:
 
 ```sh
-yarn transform addEslintDisableComment '../hw-admin/app/javascript/patient/**/*.ts*'
+yarn transform addEslintDisableComment '../hw-admin/app/javascript/patient/**/*.query.ts*'
 ```
 
 
