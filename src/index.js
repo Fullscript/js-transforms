@@ -37,6 +37,7 @@ filePaths.forEach(filePath => {
   const node = transformer({
     ast,
     transformToRun: transform,
+    filePath,
     options,
   });
 
