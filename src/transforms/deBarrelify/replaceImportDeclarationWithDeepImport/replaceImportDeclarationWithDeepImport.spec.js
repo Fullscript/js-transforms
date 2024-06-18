@@ -32,6 +32,7 @@ describe("replaceImportDeclarationWithDeepImport", () => {
       path,
       newImportSource: "./src/utils/useDebounce.ts",
       specifier: { imported: { name: "useDebounce" } },
+      importAs: false,
     });
 
     expect(path.insertAfter).toHaveBeenCalledWith(
@@ -69,6 +70,7 @@ describe("replaceImportDeclarationWithDeepImport", () => {
         path,
         newImportSource: "./src/Button/Button.tsx",
         specifier: { imported: { name: "Props" }, local: { name: "ButtonProps" } },
+        importAs: false,
       });
 
       expect(path.insertAfter).toHaveBeenCalledWith(
@@ -122,6 +124,7 @@ describe("replaceImportDeclarationWithDeepImport", () => {
         path,
         newImportSource: "./src/Button/Button.tsx",
         specifier: { imported: { name: "Props" }, local: { name: "ButtonProps" } },
+        importAs: false,
       });
 
       expect(path.insertAfter).toHaveBeenCalledWith(
@@ -144,6 +147,7 @@ describe("replaceImportDeclarationWithDeepImport", () => {
         path,
         newImportSource: "../foo/bar.tsx",
         specifier: { imported: { name: "Props" }, local: { name: "BarProps" } },
+        importAs: false,
       });
 
       expect(path.insertAfter).toHaveBeenCalledWith(
@@ -190,6 +194,7 @@ describe("replaceImportDeclarationWithDeepImport", () => {
         path,
         newImportSource: "./src/components/Button/Button.tsx",
         specifier: { imported: { name: "Props" }, local: { name: "ButtonProps" } },
+        importAs: false,
       });
 
       expect(path.insertAfter).toHaveBeenCalledWith(
@@ -221,6 +226,46 @@ describe("replaceImportDeclarationWithDeepImport", () => {
                 type: "Identifier",
                 typeAnnotation: null,
               },
+            }),
+          ],
+          type: "ImportDeclaration",
+        })
+      );
+    });
+  });
+
+  describe("when importDeclaration is a wildcard import", () => {
+    it("creates a new ImportDeclaration with aliased source", () => {
+      replaceImportDeclarationWithDeepImport({
+        builder,
+        path,
+        newImportSource: "./src/styles/dimensions.ts",
+        specifier: { imported: { name: "dimensions" } },
+        importAs: true,
+      });
+
+      expect(path.insertAfter).toHaveBeenCalledWith(
+        expect.objectContaining({
+          importKind: "value",
+          source: expect.objectContaining({
+            extra: {
+              raw: '"./styles/dimensions"',
+              rawValue: "./styles/dimensions",
+            },
+            type: "StringLiteral",
+            value: "./styles/dimensions",
+          }),
+          specifiers: [
+            expect.objectContaining({
+              imported: {
+                comments: null,
+                loc: null,
+                name: "dimensions",
+                optional: false,
+                type: "Identifier",
+                typeAnnotation: null,
+              },
+              local: null,
             }),
           ],
           type: "ImportDeclaration",

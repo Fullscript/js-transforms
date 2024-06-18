@@ -351,6 +351,22 @@ const removeTypeFromTSUnionType = (node, typeToRemove) => {
   node.types = node.types.filter(type => type?.literal?.value !== typeToRemove);
 };
 
+/**
+ * Give an ExportNamedDeclaration and a specifier, check if the specifier is in the export statement
+ *
+ * @typedef {Object} hasSpecifierParams
+ * @property {import("ast-types/gen/kinds").ExportNamedDeclarationKind} exportNode - the export node
+ * @property {import("ast-types/gen/kinds").ImportSpecifierKind} specifier - the specifier to find
+ *
+ * @param {hasSpecifierParams} param0
+ * @returns {boolean} - true if the specifier is in the export statement
+ */
+const exportNamedDeclarationHasSpecifier = ({ exportNode, specifier }) => {
+  return exportNode.specifiers?.some(
+    exportSpecifier => exportSpecifier.exported.name === specifier?.imported?.name
+  );
+};
+
 export {
   collapseConditionalExpressionIfMatchingIdentifier,
   isCallExpressionWithName,
@@ -378,4 +394,5 @@ export {
   removeElementsStartingAtIndexAndReplaceWithNewBody,
   removeImportSpecifier,
   removeTypeFromTSUnionType,
+  exportNamedDeclarationHasSpecifier,
 };

@@ -57,22 +57,33 @@ const makeRelativePath = path => {
  * @property {import("ast-types/lib/node-path").NodePath<import("ast-types/gen/kinds").ImportDeclarationKind, any>} path - the path to replace
  * @property {string} newImportSource - import source
  * @property {import("ast-types/gen/kinds").ImportSpecifierKind} specifier - the specifier to import
+ * @property {boolean} importAs - whether or not to import as wildcard
  *
  * @param {replaceImportDeclarationWithDeepImportParams}
  * @returns {void}
  */
-const replaceImportDeclarationWithDeepImport = ({ builder, path, newImportSource, specifier }) => {
+const replaceImportDeclarationWithDeepImport = ({
+  builder,
+  path,
+  newImportSource,
+  specifier,
+  importAs,
+}) => {
   // DONE: make sure to add the @shared alias to the import source
   // using insertAfter so that imports with multiple specifiers don't overwrite one another
   let newSpecifier = builder.importSpecifier(builder.identifier(specifier.imported.name));
 
   // Some imports have a local name, so we need to account for that
-  if (specifier.local) {
+  if (specifier.local && !importAs) {
     // type based import specifiers aren't supported by recast, these will need to be manually fixed
     newSpecifier = builder.importSpecifier(
       builder.identifier(specifier.imported.name),
       builder.identifier(specifier.local.name)
     );
+  } else if (specifier.local && importAs) {
+    // Some imports are imported as a wildcard, so we need to account for that
+    // e.g: import * as React from "react";
+    newSpecifier = builder.importNamespaceSpecifier(builder.identifier(specifier.local.name));
   }
 
   const matchingAlias = findMatchingAlias(newImportSource);

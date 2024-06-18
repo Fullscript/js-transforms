@@ -7,6 +7,7 @@ import { resolveAbsolutePath } from "./resolver.js";
 import { isBarrelFile, removeBarrelFileFromPath } from "./barrelFileUtils.js";
 
 import { replaceImportDeclarationWithDeepImport } from "./replaceImportDeclarationWithDeepImport/replaceImportDeclarationWithDeepImport.js";
+import { exportNamedDeclarationHasSpecifier } from "../../astUtils/index.js";
 
 /**
  * Type definitions for VSCode autocompletion!
@@ -18,32 +19,46 @@ import { replaceImportDeclarationWithDeepImport } from "./replaceImportDeclarati
  */
 
 /**
- * @typedef {Object} visitFileParams
+ * @typedef {Object} findSpecifierSourceParams
  * @property {string} filePath - the file path
  * @property {import("ast-types/gen/kinds").ImportSpecifierKind} specifier - the specifier to find
  *
- * @param {visitFileParams}
- * @returns {string|undefined} - the found specifier
+ * @typedef {Object} findSpecifierSourceResult
+ * @property {string|undefined} specifierSource - the found specifier
+ * @property {boolean} importAs - true if the specifier was imported as wildcard
+ *
+ * @param {findSpecifierSourceParams}
+ * @returns {findSpecifierSourceResult}
  */
 const findSpecifierSource = ({ filePath, specifier }) => {
   let specifierSource;
+  let importAs = false;
 
   const code = readFileSync(filePath, { encoding: "utf-8", flag: "r" });
   const barrelFileAst = parseCode(code);
 
   visit(barrelFileAst, {
+    visitImportDeclaration: function (importPath) {
+      if (importPath.node.specifiers.some(spec => spec.local.name === specifier.imported.name)) {
+        // DONE: identify the import name
+        specifierSource = importPath.node.source.value;
+        importAs = true;
+        return false; // stop parsing, found what we needed
+      }
+
+      this.traverse(importPath);
+    },
     visitExportNamedDeclaration: function (exportPath) {
-      if (
-        exportPath.node.specifiers?.find(
-          exportSpecifier => exportSpecifier.exported.name === specifier?.imported?.name
-        )
-      ) {
-        // If the export statement doesn't have a source, it's likely defined in the current filePath, set that as the returned source
-        if (!exportPath.node.source) {
-          specifierSource = filePath;
-        } else {
+      if (exportNamedDeclarationHasSpecifier({ exportNode: exportPath.node, specifier })) {
+        if (exportPath.node.source) {
           // DONE: identify the export name
           specifierSource = exportPath.node?.source?.value;
+        } else if (!specifierSource) {
+          // prevent conflict with visitImportDeclaration if the specifierSource is already set
+          // This can conflict in cases where an import statement is used to load a module which is then exported as a separate statement
+          // ex: app/javascript/styles/index.ts
+          // If the export statement doesn't have a source, it's likely defined in the current filePath, set that as the returned source
+          specifierSource = filePath;
         }
         return false; // stop parsing, found what we needed
       }
@@ -52,7 +67,7 @@ const findSpecifierSource = ({ filePath, specifier }) => {
     },
   });
 
-  return specifierSource;
+  return { specifierSource, importAs };
 };
 
 /**
@@ -67,9 +82,9 @@ const findSpecifierSource = ({ filePath, specifier }) => {
  */
 const transformImport = ({ builder, path, importSource, specifier }) => {
   // DONE: visit the barrel file and parse it's contents into an AST
-  const specifierSource = findSpecifierSource({ filePath: importSource, specifier });
+  const { specifierSource, importAs } = findSpecifierSource({ filePath: importSource, specifier });
 
-  // If there's no found specified, we don't do anything more
+  // If there's no found specifier, we don't do anything more
   if (specifierSource) {
     const deeperResolvedPath = resolveAbsolutePath({
       context: {},
@@ -85,6 +100,7 @@ const transformImport = ({ builder, path, importSource, specifier }) => {
         path,
         newImportSource: deeperResolvedPath,
         specifier,
+        importAs,
       });
 
       return true;
