@@ -26,12 +26,10 @@ import { replaceImportDeclarationWithDeepImport } from "./replaceImportDeclarati
  * @returns {string|undefined} - the found specifier
  */
 const findSpecifierSource = ({ filePath, specifier }) => {
+  let specifierSource;
+
   const code = readFileSync(filePath, { encoding: "utf-8", flag: "r" });
   const barrelFileAst = parseCode(code);
-  // const srcDirectory = getBaseUrl();
-
-  let specifierSource;
-  let exportAllSources = [];
 
   visit(barrelFileAst, {
     visitExportNamedDeclaration: function (exportPath) {
@@ -52,27 +50,22 @@ const findSpecifierSource = ({ filePath, specifier }) => {
 
       this.traverse(exportPath);
     },
-    visitExportAllDeclaration: function (exportAllPath) {
-      exportAllSources.push(exportAllPath.node.source.value);
-
-      this.traverse(exportAllPath);
-    },
   });
 
   return specifierSource;
 };
 
 /**
- * @typedef {Object} recursionParams
+ * @typedef {Object} transformImportParams
  * @property {import("ast-types/gen/builders").builders} builder - Recast builder for transforming the AST
  * @property {import("ast-types/lib/node-path").NodePath<import("ast-types/gen/kinds").ImportDeclarationKind, any>} path - the path to replace
  * @property {string} importSource - import source
  * @property {import("ast-types/gen/kinds").ImportSpecifierKind} specifier - the specifier to import
  *
- * @param {recursionParams} param0
+ * @param {transformImportParams} param0
  * @returns {boolean} - true if the import was transformed
  */
-const startRecursion = ({ builder, path, importSource, specifier }) => {
+const transformImport = ({ builder, path, importSource, specifier }) => {
   // DONE: visit the barrel file and parse it's contents into an AST
   const specifierSource = findSpecifierSource({ filePath: importSource, specifier });
 
@@ -97,7 +90,7 @@ const startRecursion = ({ builder, path, importSource, specifier }) => {
       return true;
     } else {
       // DONE: if it's a barrel file, go down again
-      return startRecursion({
+      return transformImport({
         builder,
         path,
         importSource: deeperResolvedPath,
@@ -131,7 +124,7 @@ const transform = ({ builder, filePath }) => {
 
         if (resolvedPath && isBarrelFile(resolvedPath)) {
           path.node.specifiers.forEach(specifier => {
-            const wasImportTransformed = startRecursion({
+            const wasImportTransformed = transformImport({
               builder,
               path,
               importSource: resolvedPath,
