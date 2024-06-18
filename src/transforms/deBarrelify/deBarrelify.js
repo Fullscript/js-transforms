@@ -26,6 +26,7 @@ import { exportNamedDeclarationHasSpecifier } from "../../astUtils/index.js";
  * @typedef {Object} findSpecifierSourceResult
  * @property {string|undefined} specifierSource - the found specifier
  * @property {boolean} importAs - true if the specifier was imported as wildcard
+ * @property {string[]} potentialSpecifierSources - the potential specifier sources
  *
  * @param {findSpecifierSourceParams}
  * @returns {findSpecifierSourceResult}
@@ -33,6 +34,7 @@ import { exportNamedDeclarationHasSpecifier } from "../../astUtils/index.js";
 const findSpecifierSource = ({ filePath, specifier }) => {
   let specifierSource;
   let importAs = false;
+  let potentialSpecifierSources = [];
 
   const code = readFileSync(filePath, { encoding: "utf-8", flag: "r" });
   const barrelFileAst = parseCode(code);
@@ -65,9 +67,15 @@ const findSpecifierSource = ({ filePath, specifier }) => {
 
       this.traverse(exportPath);
     },
+    visitExportAllDeclaration: function (exportPath) {
+      potentialSpecifierSources.push(exportPath.node.source.value);
+      this.traverse(exportPath);
+    },
+
+    // Look at adding support for visitExportNamedDeclaration with wildcard
   });
 
-  return { specifierSource, importAs };
+  return { specifierSource, importAs, potentialSpecifierSources };
 };
 
 /**
@@ -82,7 +90,10 @@ const findSpecifierSource = ({ filePath, specifier }) => {
  */
 const transformImport = ({ builder, path, importSource, specifier }) => {
   // DONE: visit the barrel file and parse it's contents into an AST
-  const { specifierSource, importAs } = findSpecifierSource({ filePath: importSource, specifier });
+  const { specifierSource, importAs, potentialSpecifierSources } = findSpecifierSource({
+    filePath: importSource,
+    specifier,
+  });
 
   // If there's no found specifier, we don't do anything more
   if (specifierSource) {
@@ -112,6 +123,43 @@ const transformImport = ({ builder, path, importSource, specifier }) => {
         importSource: deeperResolvedPath,
         specifier,
       });
+    }
+  } else if (potentialSpecifierSources.length > 0) {
+    // loop through each potentialSpecifierSource, dive into if further and check if the specifier is found
+    // if it is, replace the import with the deeperResolvedPath
+    // if it's not, continue to the next potentialSpecifierSource
+    // if nothing is found, do nothing
+
+    for (let i = 0; i < potentialSpecifierSources.length; i++) {
+      const deeperResolvedPath = resolveAbsolutePath({
+        context: {},
+        resolveContext: {},
+        folderPath: removeBarrelFileFromPath(`./${importSource}`),
+        importSource: potentialSpecifierSources[i],
+      });
+
+      if (isBarrelFile(deeperResolvedPath)) {
+        const wasImportTransformed = transformImport({
+          builder,
+          path,
+          importSource: deeperResolvedPath,
+          specifier,
+        });
+
+        if (wasImportTransformed) {
+          return true;
+        }
+      } else {
+        replaceImportDeclarationWithDeepImport({
+          builder,
+          path,
+          newImportSource: deeperResolvedPath,
+          specifier,
+          importAs,
+        });
+
+        return true;
+      }
     }
   }
 

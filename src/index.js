@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFile } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import glob from "glob";
 import { print } from "recast";
 
@@ -48,10 +48,6 @@ filePaths.forEach(filePath => {
   if (dryRun) {
     dryRunOutput(transformedCode, filePath);
   } else {
-    writeFile(filePath, transformedCode, writeError => {
-      if (writeError) {
-        throw writeError();
-      }
-    });
+    writeFileSync(filePath, transformedCode);
   }
 });
