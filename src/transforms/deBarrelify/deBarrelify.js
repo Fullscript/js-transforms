@@ -41,7 +41,7 @@ const findSpecifierSource = ({ filePath, specifier }) => {
 
   visit(barrelFileAst, {
     visitImportDeclaration: function (importPath) {
-      if (importPath.node.specifiers.some(spec => spec.local.name === specifier.imported.name)) {
+      if (importPath.node.specifiers.some(spec => spec.local.name === specifier?.imported?.name)) {
         // DONE: identify the import name
         specifierSource = importPath.node.source.value;
         importAs = true;
@@ -96,7 +96,8 @@ const transformImport = ({ builder, path, importSource, specifier }) => {
   });
 
   // If there's no found specifier, we don't do anything more
-  if (specifierSource) {
+  // If specifier if the same as the importSource, we don't do anything more
+  if (specifierSource && specifierSource !== importSource) {
     const deeperResolvedPath = resolveAbsolutePath({
       context: {},
       resolveContext: {},
