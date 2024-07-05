@@ -69,6 +69,12 @@ const replaceImportDeclarationWithDeepImport = ({
   specifier,
   importAs,
 }) => {
+  // If the specifier doesn't have an imported name, we don't do anything
+  // e.g.:import "@testing-library/jest-native/extend-expect";
+  if (!specifier.imported?.name) {
+    return;
+  }
+
   // DONE: make sure to add the @shared alias to the import source
   // using insertAfter so that imports with multiple specifiers don't overwrite one another
   let newSpecifier = builder.importSpecifier(builder.identifier(specifier.imported.name));
@@ -103,7 +109,7 @@ const replaceImportDeclarationWithDeepImport = ({
     builder.importDeclaration(
       [newSpecifier],
       builder.stringLiteral(finalizedImportSource),
-      path.node.importKind
+      specifier?.importKind
     )
   );
 };
