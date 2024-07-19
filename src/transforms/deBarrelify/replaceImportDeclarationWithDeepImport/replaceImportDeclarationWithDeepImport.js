@@ -109,7 +109,7 @@ const replaceImportDeclarationWithDeepImport = ({
     builder.importDeclaration(
       [newSpecifier],
       builder.stringLiteral(finalizedImportSource),
-      specifier?.importKind
+      path.node.importKind
     )
   );
 };
