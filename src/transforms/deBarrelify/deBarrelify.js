@@ -168,18 +168,51 @@ const transformImport = ({ builder, path, importSource, specifier }) => {
 };
 
 /**
+ * @typedef {Object} isSpecifiedNamesToIgnoreParams
+ * @property {import("ast-types/lib/node-path").NodePath<import("ast-types/gen/kinds").ImportDeclarationKind, any>} path - the path to replace
+ * @property {string} specifiedNamespace - import namespace to operate on
+ *
+ * @param {isSpecifiedNamesToIgnoreParams} param0
+ * @returns {boolean} - true if the import should be transformed
+ */
+const isSpecifiedNamespaceToTransform = ({ path, specifiedNamespace }) => {
+  return specifiedNamespace && path.node.source.value.startsWith(specifiedNamespace);
+};
+
+/**
+ * @typedef {Object} isSpecifiedNamesToIgnoreParams
+ * @property {import("ast-types/lib/node-path").NodePath<import("ast-types/gen/kinds").ImportDeclarationKind, any>} path - the path to replace
+ * @property {string} specifiedNamespace - import namespace to operate on
+ *
+ * @param {isSpecifiedNamesToIgnoreParams} param0
+ * @returns {boolean} - true if the import should be ignored
+ */
+const isNotSpecifiedNamespaceToTransform = ({ path, specifiedNamespace }) => {
+  return specifiedNamespace && !path.node.source.value.startsWith(specifiedNamespace);
+};
+
+/**
  * @param {TransformParams} param0
  * @returns {import("ast-types").Visitor}
  */
-const transform = ({ builder, filePath }) => {
+const transform = ({ builder, filePath, options }) => {
   const folderPath = filePath.split("/").slice(0, -1).join("/");
+  const specifiedNamespace = options?.[0];
+  const ignoreSpecifiedNamespace = !!options?.[1];
 
   return {
     visitImportDeclaration: path => {
       let importTransformed = false;
 
       // Verify that the import is not a node builtin module
-      if (!isBuiltinModule(path.node.source.value)) {
+      if (
+        ((isSpecifiedNamespaceToTransform({ path, specifiedNamespace }) &&
+          !ignoreSpecifiedNamespace) ||
+          !specifiedNamespace ||
+          (isNotSpecifiedNamespaceToTransform({ path, specifiedNamespace }) &&
+            ignoreSpecifiedNamespace)) &&
+        !isBuiltinModule(path.node.source.value)
+      ) {
         const resolvedPath = resolveAbsolutePath({
           context: {},
           resolveContext: {},

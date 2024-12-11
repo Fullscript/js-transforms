@@ -7,7 +7,7 @@ import { print } from "recast";
 import { parseCode } from "./parser.js";
 import { AVAILABLE_TRANSFORMS } from "./availableTransforms.js";
 import { validTransformName } from "./validTransformName.js";
-import { dryRun, filePaths, transformToRun, options, verbose } from "./cli.js";
+import { dryRun, filePaths, transformToRun, options } from "./cli.js";
 import { dryRunOutput } from "./dryRunOutput.js";
 import { verboseOutput } from "./verboseOutput.js";
 import { transformer } from "./transformer.js";
