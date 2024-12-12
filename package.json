@@ -17,14 +17,14 @@
   },
   "bin": "./src/index.js",
   "dependencies": {
-    "@babel/parser": "^7.20.7",
+    "@babel/parser": "^7.26.3",
     "cli-highlight": "^2.1.11",
-    "glob": "^8.0.3",
-    "recast": "^0.22.0",
+    "glob": "^11.0.0",
+    "recast": "^0.23.9",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "prettier": "^3.1.0",
-    "vitest": "^0.34.6"
+    "prettier": "^3.4.2",
+    "vitest": "^2.1.8"
   }
 }
