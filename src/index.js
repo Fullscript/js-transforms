@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from "fs";
-import glob from "glob";
+import { sync } from "glob";
 import { print } from "recast";
+
+import { readFileSync, writeFileSync } from "node:fs";
 
 import { parseCode } from "./parser.js";
 import { AVAILABLE_TRANSFORMS } from "./availableTransforms.js";
@@ -23,7 +24,7 @@ if (!validTransformName(transformToRun)) {
   process.exit(1);
 }
 
-const transformPath = glob.sync(`${__dirname}/transforms/**/${transformToRun}.js`)[0];
+const transformPath = sync(`${__dirname}/transforms/**/${transformToRun}.js`)[0];
 const { transform } = await import(transformPath.replace("./src", "."));
 
 filePaths.forEach(filePath => {

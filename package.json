@@ -17,18 +17,18 @@
   },
   "bin": "./src/index.js",
   "dependencies": {
-    "@babel/parser": "^7.20.7",
+    "@babel/parser": "^7.26.3",
     "cli-highlight": "^2.1.11",
     "enhanced-resolve": "^5.16.0",
     "get-tsconfig": "^4.7.5",
-    "glob": "^8.0.3",
+    "glob": "^11.0.0",
     "is-builtin-module": "^4.0.0",
-    "recast": "^0.22.0",
+    "recast": "^0.23.9",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^1.6.0",
-    "prettier": "^3.1.0",
-    "vitest": "^1.6.0"
+    "prettier": "^3.4.2",
+    "vitest": "^2.1.8"
   }
 }
