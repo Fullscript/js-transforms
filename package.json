@@ -22,7 +22,7 @@
     "@babel/parser": "^7.20.7",
     "cli-highlight": "^2.1.11",
     "glob": "^8.0.3",
-    "recast": "^0.22.0",
+    "recast": "^0.23.9",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
