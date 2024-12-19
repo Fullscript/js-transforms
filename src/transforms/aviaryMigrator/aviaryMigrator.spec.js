@@ -255,6 +255,44 @@ describe("aviaryMigrator", () => {
     });
   });
 
+  describe("when propsToRename and propsToAdd contain the same prop", () => {
+    it("just renames the prop without using the new value", async () => {
+      config = {
+        importSource: "@aviary",
+        newImportSource: "@fullscript/aviary-web",
+        componentName: "Status",
+        propsToRename: {
+          isColor: "intention",
+        },
+        propsToAdd: {
+          intention: "success",
+        },
+      };
+
+      const code = `
+        import { Status } from "@aviary";
+
+        const Component = () => {
+          return <Status isColor="warning" />;
+        };
+      `;
+
+      const result = await transformCode({
+        code,
+        transform,
+        options: ["./Config.json"],
+      });
+
+      await expect(result).assertWithPrettier(`
+        import { Status } from "@fullscript/aviary-web";
+        
+        const Component = () => {
+          return <Status intention="warning" />;
+        };
+      `);
+    });
+  });
+
   describe("when propsToRemove is specified", () => {
     it("removes props from propsToRemove and their values", async () => {
       config = {
@@ -408,6 +446,54 @@ describe("aviaryMigrator", () => {
             <>
               <Button />
               <Status />
+            </>
+          );
+        };
+      `);
+    });
+  });
+
+  describe("when multiple instances of the component to modify exists", () => {
+    it("modifies each instance", async () => {
+      config = {
+        importSource: "@aviary",
+        newImportSource: "@fullscript/aviary-web",
+        componentName: "Status",
+        propsToRename: {
+          isColor: "intention",
+        },
+        propsToAdd: {
+          intention: "success",
+        },
+      };
+
+      const code = `
+        import { Status } from "@aviary";
+
+        const Component = () => {
+          return (
+            <>
+              <Status isColor="warning" />
+              <Status isColor="error" />
+            </>
+          );
+        };
+      `;
+
+      const result = await transformCode({
+        code,
+        transform,
+        options: ["./Config.json"],
+      });
+
+      await expect(result).assertWithPrettier(`
+        import { Status } from "@fullscript/aviary-web";
+        
+        const Component = () => {
+          return (
+            <>
+              <Status intention="warning" />
+              <Status intention="error" />
             </>
           );
         };

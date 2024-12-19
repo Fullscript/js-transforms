@@ -20,7 +20,8 @@ import { readFileSync } from "node:fs";
 //   }
 // }
 
-let needToCreateImportDeclaration = true;
+let needToCreateImportDeclaration;
+let alreadyRemovedDeclaration;
 let importDeclarationPath;
 let newImportDeclarationPath;
 let parentPath;
@@ -46,6 +47,7 @@ const removeSpecifierOrImportDeclaration = (componentName, importSource) => {
   // Removes componentName specifier from importSource
   // First condition is when just a single specifier exists within the importDeclaration
   if (
+    !alreadyRemovedDeclaration &&
     importDeclarationPath.node.source.value.startsWith(importSource) &&
     importDeclarationPath.node.specifiers.some(
       specifier => specifier?.imported?.name === componentName
@@ -53,6 +55,7 @@ const removeSpecifierOrImportDeclaration = (componentName, importSource) => {
   ) {
     // just one specifier for the import declaration, we can remove the whole import declaration
     if (importDeclarationPath.node.specifiers.length === 1) {
+      alreadyRemovedDeclaration = true;
       importDeclarationPath.prune();
     } else {
       // More than one specifier is declared, we just remove componentName
@@ -84,13 +87,13 @@ const addImportDeclarationIfNeeded = (builder, componentName, newImportSource) =
 
   // Add componentName to existing newImportSource import declaration
   // If componentName is already imported, don't add it again
-  const hasImportedComponent = newImportDeclarationPath.node.specifiers.some(
+  const hasImportedComponent = newImportDeclarationPath?.node?.specifiers?.some(
     specifier => specifier?.imported?.name === componentName
   );
 
   if (!hasImportedComponent) {
     needToCreateImportDeclaration = false;
-    newImportDeclarationPath.node.specifiers.push(
+    newImportDeclarationPath?.node?.specifiers?.push(
       builder.importSpecifier(builder.identifier(componentName))
     );
   }
@@ -222,6 +225,7 @@ const transform = ({ builder, options }) => {
       needToCreateImportDeclaration = true;
       importDeclarationPath = null;
       newImportDeclarationPath = null;
+      alreadyRemovedDeclaration = false;
       parentPath = path;
     },
     visitImportDeclaration(path) {
