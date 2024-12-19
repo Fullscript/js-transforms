@@ -6,9 +6,13 @@ import { readFileSync } from "node:fs";
 // Example configuration file:
 // NOTE: Props to add can be used to add any new required props with some default value
 // {
+//   "importSource": "@aviary",
+//   "newImportSource": "@fullscript/aviary-web",
 //   "componentName": "Status",
+//   "newComponentName": "ComponentToRenameTo",
 //   "propsToRename": {
-//     "isColor": "intention"
+//     "isColor": "intention",
+//     "css": "customCss"
 //   },
 //   "propsToRemove": ["dotPlacement"],
 //   "propsToAdd": {
@@ -17,8 +21,9 @@ import { readFileSync } from "node:fs";
 // }
 
 let needToCreateImportDeclaration = true;
-let importDeclarationNode;
-let parentNode;
+let importDeclarationPath;
+let newImportDeclarationPath;
+let parentPath;
 
 /**
  * Type definitions for VSCode autocompletion!
@@ -30,62 +35,65 @@ let parentNode;
  */
 
 /**
- * Given an ImportDeclaration, if it's an @aviary import, either remove specified componentName or the whole import declaration
+ * Given an ImportDeclaration, if it's a importSource import, either remove specified componentName or the whole import declaration
  *
  * @param {import("ast-types/lib/node-path").NodePath<import("ast-types/gen/kinds").ImportDeclarationKind, any>} path
  * @param {string} componentName - The name of the component being converted
+ * @param {string} importSource - The old import path for the component being converted
  * @returns
  */
-const removeSpecifierOrImportDeclaration = (path, componentName) => {
-  // Removes componentName specifier from @aviary
+const removeSpecifierOrImportDeclaration = (componentName, importSource) => {
+  // Removes componentName specifier from importSource
   // First condition is when just a single specifier exists within the importDeclaration
   if (
-    path.node.source.value.startsWith("@aviary") &&
-    path.node.specifiers.some(specifier => specifier?.imported?.name === componentName)
+    importDeclarationPath.node.source.value.startsWith(importSource) &&
+    importDeclarationPath.node.specifiers.some(
+      specifier => specifier?.imported?.name === componentName
+    )
   ) {
     // just one specifier for the import declaration, we can remove the whole import declaration
-    if (path.node.specifiers.length === 1) {
-      return path.prune();
+    if (importDeclarationPath.node.specifiers.length === 1) {
+      importDeclarationPath.prune();
+    } else {
+      // More than one specifier is declared, we just remove componentName
+      importDeclarationPath.node.specifiers = importDeclarationPath.node.specifiers.filter(
+        specifier => specifier.imported.name !== componentName
+      );
     }
-
-    // More than one specifier is declared, we just remove componentName
-    path.node.specifiers = path.node.specifiers.filter(
-      specifier => specifier.imported.name !== componentName
-    );
   }
 };
 
 /**
  * @param {import("ast-types/gen/builders").builders} builder - Recast builder for transforming the AST
  * @param {string} componentName - The name of the component to be imported
+ * @param {string} newImportSource - The new import path for the component being converted
  */
-const addImportDeclarationIfNeeded = (builder, componentName) => {
-  // Add componentName to existing @fullscript/aviary-web import declaration
-  if (importDeclarationNode) {
-    // If componentName is already imported, don't add it again
-    const hasImportedComponent = importDeclarationNode.specifiers.some(
-      specifier => specifier?.imported?.name === componentName
-    );
-
-    if (!hasImportedComponent) {
-      needToCreateImportDeclaration = false;
-      path.node.specifiers.push(
-        builder.importSpecifier(builder.identifier(newComponentName || componentName))
-      );
-    }
-  }
-
-  // Add import { componentName } from "@fullscript/aviary-web" if it doesn't exist
-  if (needToCreateImportDeclaration) {
-    parentNode.body.unshift(
+const addImportDeclarationIfNeeded = (builder, componentName, newImportSource) => {
+  // Add import { componentName } from "<newImportSource>" if it doesn't exist
+  if (needToCreateImportDeclaration && !newImportDeclarationPath) {
+    parentPath.node.body.unshift(
       builder.importDeclaration(
         [builder.importSpecifier(builder.identifier(componentName))],
-        builder.stringLiteral("@fullscript/aviary-web")
+        builder.stringLiteral(newImportSource)
       )
     );
+
+    needToCreateImportDeclaration = false;
+    return;
   }
 
-  needToCreateImportDeclaration = false;
+  // Add componentName to existing newImportSource import declaration
+  // If componentName is already imported, don't add it again
+  const hasImportedComponent = newImportDeclarationPath.node.specifiers.some(
+    specifier => specifier?.imported?.name === componentName
+  );
+
+  if (!hasImportedComponent) {
+    needToCreateImportDeclaration = false;
+    newImportDeclarationPath.node.specifiers.push(
+      builder.importSpecifier(builder.identifier(componentName))
+    );
+  }
 };
 
 /**
@@ -100,7 +108,12 @@ const renameComponent = (path, componentName, newComponentName) => {
 
   if (componentName !== newComponentName) {
     path.node.openingElement.name.name = newComponentName;
-    path.node.closingElement.name.name = newComponentName;
+
+    // Not all components have closing elements
+    // Ex: <Component />
+    if (path.node.closingElement?.name?.name) {
+      path.node.closingElement.name.name = newComponentName;
+    }
   }
 };
 
@@ -114,11 +127,6 @@ const renamePropsToRename = (path, propsToRename) => {
   path.node.openingElement.attributes.forEach(attribute => {
     if (attribute?.name?.name && propsToRename?.[attribute.name.name]) {
       attribute.name.name = propsToRename[attribute.name.name];
-    }
-
-    // All new aviary components use customCss instead of the traditional css attribute
-    if (attribute?.name?.name === "css") {
-      attribute.name.name = "customCss";
     }
   });
 };
@@ -166,34 +174,77 @@ const addPropsToAdd = (path, propsToAdd, builder) => {
 };
 
 /**
+ * Checks to see if the specified path is for the component that we intend to modify
+ *
+ * @param {import("ast-types/lib/node-path").NodePath<import("ast-types/gen/kinds").JSXElementKind, any>} path
+ * @params {string} componentName - the component name that we want to modify
+ * @returns {boolean} - true if we should modify the passed component, false otherwise
+ */
+const isComponentToModify = (path, componentName) => {
+  // If importDeclarationPath is NOT set
+  // then we are not importing the specified component from the specified importSource
+  // this avoids the transform from modifying other components that are named the same from different imports
+  return importDeclarationPath && path.node.openingElement.name.name === componentName;
+};
+
+/**
  * @param {TransformParams} param0
  * @returns {import("ast-types").Visitor}
  */
 const transform = ({ builder, options }) => {
   const configPath = options[0];
 
-  const { componentName, newComponentName, propsToRename, propsToRemove, propsToAdd } = JSON.parse(
-    readFileSync(configPath, { encoding: "utf-8" })
-  );
+  const {
+    componentName,
+    newComponentName,
+    propsToRename = {},
+    propsToRemove = [],
+    propsToAdd = {},
+    importSource,
+    newImportSource,
+  } = JSON.parse(readFileSync(configPath, { encoding: "utf-8" }));
+
+  if (!componentName) {
+    throw new Error(
+      `componentName is required in ${configPath}, please specify the component you want to migrate.`
+    );
+  }
+
+  if (!importSource) {
+    throw new Error(
+      `importSource is required in ${configPath}, please specify the existing import path for ${componentName}.`
+    );
+  }
 
   return {
     visitProgram(path) {
       // Need to reset these global properties to initial state for each processed file
       needToCreateImportDeclaration = true;
-      importDeclarationNode = null;
-      parentNode = path.node;
+      importDeclarationPath = null;
+      newImportDeclarationPath = null;
+      parentPath = path;
     },
     visitImportDeclaration(path) {
-      // If import declaration fo @fullscript/aviary-web is found, save it for later use
-      if (path.node.source.value === "@fullscript/aviary-web") {
-        importDeclarationNode = path.node;
+      // If import declaration for old importSource is found, save it for later use
+      if (
+        path.node.source.value === importSource &&
+        path.node.specifiers.some(specifier => specifier?.imported?.name === componentName)
+      ) {
+        importDeclarationPath = path;
       }
 
-      removeSpecifierOrImportDeclaration(path, componentName);
+      if (path.node.source.value === newImportSource) {
+        newImportDeclarationPath = path;
+      }
     },
     visitJSXElement(path) {
-      if (path.node.openingElement.name.name === componentName) {
-        addImportDeclarationIfNeeded(builder, newComponentName || componentName);
+      if (isComponentToModify(path, componentName)) {
+        removeSpecifierOrImportDeclaration(componentName, importSource);
+        addImportDeclarationIfNeeded(
+          builder,
+          newComponentName || componentName,
+          newImportSource || importSource
+        );
 
         renameComponent(path, componentName, newComponentName);
         renamePropsToRename(path, propsToRename);
