@@ -8,23 +8,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prettier-format": "prettier --write \"./src/**/*.js\"",
-    "prettier-check": "prettier --check \"./src/**/*.js\"",
+    "prettier:format": "prettier --write \"./src/**/*.js\"",
+    "prettier:check": "prettier --check \"./src/**/*.js\"",
     "transform": "node ./src/index.js",
-    "transform-debug": "node --inspect-brk ./src/index.js",
-    "test": "vitest",
-    "test-debug": "node --inspect-brk ./node_modules/.bin/vitest ./src/index.js"
+    "transform:debug": "node --inspect-brk ./src/index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:debug": "node --inspect-brk ./node_modules/.bin/vitest run",
+    "test:watch": "vitest"
   },
   "bin": "./src/index.js",
   "dependencies": {
-    "@babel/parser": "^7.20.7",
+    "@babel/parser": "^7.26.3",
     "cli-highlight": "^2.1.11",
     "glob": "^8.0.3",
-    "recast": "^0.22.0",
+    "recast": "^0.23.9",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
     "prettier": "^3.1.0",
-    "vitest": "^0.34.6"
+    "vitest": "^2.1.8"
   }
 }
