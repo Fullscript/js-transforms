@@ -1,4 +1,4 @@
-import glob from "glob";
+import { sync } from "glob";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -35,7 +35,7 @@ const args = yargsInstance.argv;
 const positionalArgs = args._;
 
 const transformToRun = positionalArgs[0];
-const filePaths = glob.sync(positionalArgs[1]);
+const filePaths = sync(positionalArgs[1]);
 const dryRun = args.dryRun;
 const options = args.options;
 const verbose = args.verbose;
