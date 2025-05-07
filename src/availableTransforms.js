@@ -1,9 +1,9 @@
-import glob from "glob";
+import { sync } from "glob";
 
 import { __dirname } from "./dirname.js";
 
 // Relative to the directory where the command is run
-const transforms = glob.sync(`${__dirname}/transforms/**/*.js`);
+const transforms = sync(`${__dirname}/transforms/**/*.js`);
 
 const AVAILABLE_TRANSFORMS = transforms
   .filter(transform => !transform.endsWith("spec.js"))
