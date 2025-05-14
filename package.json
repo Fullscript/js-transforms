@@ -21,7 +21,10 @@
   "dependencies": {
     "@babel/parser": "^7.27.2",
     "cli-highlight": "^2.1.11",
+    "enhanced-resolve": "^5.16.0",
+    "get-tsconfig": "^4.7.5",
     "glob": "^11.0.2",
+    "is-builtin-module": "^4.0.0",
     "recast": "^0.23.11",
     "yargs": "^17.7.2"
   },
