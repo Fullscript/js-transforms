@@ -1,6 +1,6 @@
 {
   "name": "@fullscript/js-transforms",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Local recast transforms for use against hw-admin",
   "exports": "./src/index.js",
   "author": "ryan.oconnor@fullscript.com",
@@ -8,27 +8,30 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prettier-format": "prettier --write \"./src/**/*.js\"",
-    "prettier-check": "prettier --check \"./src/**/*.js\"",
+    "prettier:format": "prettier --write \"./src/**/*.js\"",
+    "prettier:check": "prettier --check \"./src/**/*.js\"",
     "transform": "node ./src/index.js",
-    "transform-debug": "node --inspect-brk ./src/index.js",
-    "test": "vitest",
-    "test-debug": "node --inspect-brk ./node_modules/.bin/vitest ./src/index.js"
+    "transform:debug": "node --inspect-brk ./src/index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:debug": "node --inspect-brk ./node_modules/.bin/vitest run",
+    "test:watch": "vitest"
   },
   "bin": "./src/index.js",
   "dependencies": {
-    "@babel/parser": "^7.26.3",
+    "@babel/parser": "^7.27.2",
     "cli-highlight": "^2.1.11",
     "enhanced-resolve": "^5.16.0",
     "get-tsconfig": "^4.7.5",
-    "glob": "^11.0.0",
+    "glob": "^11.0.2",
     "is-builtin-module": "^4.0.0",
-    "recast": "^0.23.9",
+    "recast": "^0.23.11",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^1.6.0",
-    "prettier": "^3.4.2",
-    "vitest": "^2.1.8"
-  }
+    "@vitest/coverage-v8": "^2.1.9",
+    "prettier": "^3.5.3",
+    "vitest": "^2.1.9"
+  },
+  "packageManager": "yarn@4.9.1"
 }

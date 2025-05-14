@@ -12,6 +12,7 @@ const parseCode = code => {
           allowSuperOutsideMethod: true,
           allowUndeclaredExports: true,
           tokens: true,
+          sourceType: "module",
           plugins: [
             "typescript",
             "jsx",
