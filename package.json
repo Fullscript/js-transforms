@@ -5,7 +5,6 @@
   "exports": "./src/index.js",
   "author": "ryan.oconnor@fullscript.com",
   "license": "MIT",
-  "private": true,
   "type": "module",
   "scripts": {
     "prettier:format": "prettier --write \"./src/**/*.js\"",
