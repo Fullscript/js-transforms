@@ -1,11 +1,10 @@
 {
   "name": "@fullscript/js-transforms",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Local recast transforms for use against hw-admin",
   "exports": "./src/index.js",
   "author": "ryan.oconnor@fullscript.com",
   "license": "MIT",
-  "private": true,
   "type": "module",
   "scripts": {
     "prettier:format": "prettier --write \"./src/**/*.js\"",
@@ -30,5 +29,5 @@
     "prettier": "^3.5.3",
     "vitest": "^2.1.9"
   },
-  "packageManager": "yarn@4.9.1"
+  "packageManager": "yarn@4.13.0"
 }
