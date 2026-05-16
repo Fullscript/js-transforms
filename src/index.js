@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFile } from "fs";
 import { sync } from "glob";
 import { print } from "recast";
+
+import { readFileSync, writeFileSync } from "node:fs";
 
 import { parseCode } from "./parser.js";
 import { AVAILABLE_TRANSFORMS } from "./availableTransforms.js";
@@ -37,6 +38,7 @@ filePaths.forEach(filePath => {
   const node = transformer({
     ast,
     transformToRun: transform,
+    filePath,
     options,
   });
 
@@ -47,10 +49,6 @@ filePaths.forEach(filePath => {
   if (dryRun) {
     dryRunOutput(transformedCode, filePath);
   } else {
-    writeFile(filePath, transformedCode, writeError => {
-      if (writeError) {
-        throw writeError();
-      }
-    });
+    writeFileSync(filePath, transformedCode);
   }
 });

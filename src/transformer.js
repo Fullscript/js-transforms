@@ -2,8 +2,8 @@ import { visit, types } from "recast";
 
 const builder = types.builders;
 
-const transformer = ({ ast, transformToRun, options }) => {
-  const visitMethods = transformToRun({ ast, builder, options });
+const transformer = ({ ast, transformToRun, filePath, options }) => {
+  const visitMethods = transformToRun({ ast, builder, filePath, options });
 
   const visitMethodsWithTraverse = Object.keys(visitMethods).reduce((acc, methodName) => {
     // using function here for this binding
